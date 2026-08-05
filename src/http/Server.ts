@@ -7,6 +7,9 @@ import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.j
 import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
 import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWeatherUseCase.js";
+import { MAP_LAYERS, MapLayer } from "../domain/entities/MapTile.js";
+import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
+import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
 import ClientError from "./ClientError.js";
 import formatResponseData from "./formatResponseData.js";
 import RateLimiter from "./RateLimiter.js";
@@ -31,6 +34,12 @@ interface ServerUseCases {
     weather: {
         getForecastWeather: GetForecastWeatherUseCase;
     };
+    map: {
+        getMapTile: GetMapTileUseCase;
+    };
+    radar: {
+        getRadar: GetRadarUseCase;
+    };
 }
 
 type Route = readonly ["get", string, RequestHandler];
@@ -43,6 +52,8 @@ class Server {
         ["get", "/health", this._GET_health],
         ["get", "/v1/storms", this._GET_storms],
         ["get", "/v1/weather/forecast", this._GET_forecastWeather],
+        ["get", "/v1/map-tiles/:layer/:z/:x/:y", this._GET_mapTile],
+        ["get", "/v1/radar", this._GET_radar],
         ["get", "/v1/storms/:stormId/track", this._GET_stormTrack],
         ["get", "/v1/storms/:stormId/cone", this._GET_stormCone],
         ["get", "/v1/storms/:stormId/spaghetti", this._GET_stormSpaghetti],
@@ -194,6 +205,38 @@ class Server {
         response.json({ ok: true, data });
     }
 
+    private async _GET_mapTile (request: Request, response: Response): Promise<void> {
+        const layer = request.params.layer;
+        const z = parseTileCoordinate(request.params.z);
+        const x = parseTileCoordinate(request.params.x);
+        const y = parseTileCoordinate(request.params.y);
+
+        if (typeof layer !== "string" || !isMapLayer(layer)) {
+            throw new ClientError("Path param 'layer' is invalid.");
+        }
+
+        if (z === null || x === null || y === null || z < 1 || z > 5) {
+            throw new ClientError("Path params 'z', 'x', and 'y' are invalid.");
+        }
+
+        const maxCoordinate = 2 ** z - 1;
+
+        if (x < 0 || x > maxCoordinate || y < 0 || y > maxCoordinate) {
+            throw new ClientError("Path params 'x' and 'y' are invalid for this zoom.");
+        }
+
+        const tile = await this._useCases.map.getMapTile.execute({ layer, z, x, y });
+
+        response.set("Content-Type", tile.contentType);
+        response.send(tile.buffer);
+    }
+
+    private async _GET_radar (_request: Request, response: Response): Promise<void> {
+        const data = await this._useCases.radar.getRadar.execute();
+
+        response.json({ ok: true, data });
+    }
+
     private async _GET_stormTrack (request: Request, response: Response): Promise<void> {
         const stormId = request.params.stormId;
 
@@ -251,4 +294,18 @@ function parseCoordinate (value: unknown, name: string, min: number, max: number
 
 function isForecastUnits (value: unknown): value is "standard" | "metric" | "imperial" {
     return value === "standard" || value === "metric" || value === "imperial";
+}
+
+function isMapLayer (value: string): value is MapLayer {
+    return (MAP_LAYERS as readonly string[]).includes(value);
+}
+
+function parseTileCoordinate (value: unknown): number | null {
+    if (typeof value !== "string" || !/^\d+$/.test(value)) {
+        return null;
+    }
+
+    const coordinate = Number(value);
+
+    return Number.isSafeInteger(coordinate) ? coordinate : null;
 }

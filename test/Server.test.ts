@@ -6,16 +6,22 @@ import StormCone from "../src/domain/entities/StormCone.js";
 import StormTrack from "../src/domain/entities/StormTrack.js";
 import StormSpaghetti from "../src/domain/entities/StormSpaghetti.js";
 import ForecastWeather from "../src/domain/entities/ForecastWeather.js";
+import MapTile, { MapTileQuery } from "../src/domain/entities/MapTile.js";
+import Radar from "../src/domain/entities/Radar.js";
 import StormNotFoundError from "../src/domain/errors/StormNotFoundError.js";
 import StormProviderError from "../src/domain/errors/StormProviderError.js";
 import SpaghettiRepository from "../src/domain/repositories/ISpaghettiRepository.js";
 import StormRepository from "../src/domain/repositories/IStormRepository.js";
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/repositories/IForecastWeatherRepository.js";
+import MapTileRepository from "../src/domain/repositories/IMapTileRepository.js";
+import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
 import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
 import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "../src/domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../src/domain/use-cases/storm/GetStormTrackUseCase.js";
 import GetForecastWeatherUseCase from "../src/domain/use-cases/weather/GetForecastWeatherUseCase.js";
+import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
+import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
 import RateLimiter from "../src/http/RateLimiter.js";
 import Server from "../src/http/Server.js";
 
@@ -24,6 +30,8 @@ let rateLimiter: RateLimiter;
 let stormRepository: TestStormRepository;
 let spaghettiRepository: TestSpaghettiRepository;
 let forecastWeatherRepository: TestForecastWeatherRepository;
+let mapTileRepository: TestMapTileRepository;
+let radarRepository: TestRadarRepository;
 let baseUrl: string;
 
 class TestStormRepository implements StormRepository {
@@ -220,6 +228,42 @@ class TestForecastWeatherRepository implements ForecastWeatherRepository {
     }
 }
 
+class TestMapTileRepository implements MapTileRepository {
+    public error: Error | null = null;
+
+    public async getTile (_query: MapTileQuery): Promise<MapTile> {
+        if (this.error) {
+            throw this.error;
+        }
+
+        return { buffer: Buffer.from("png"), contentType: "image/png" };
+    }
+}
+
+class TestRadarRepository implements RadarRepository {
+    public error: Error | null = null;
+
+    public readonly radar: Radar = {
+        source: "rainviewer",
+        attribution: "Weather data by RainViewer",
+        attributionUrl: "https://www.rainviewer.com/",
+        host: "https://tilecache.rainviewer.com",
+        tileTemplate: "https://tilecache.rainviewer.com{path}/256/{z}/{x}/{y}/2/1_1.png",
+        past: [],
+        nowcast: [],
+        generatedAt: "2026-08-05T00:00:00.000Z",
+        cachedUntil: "2026-08-05T12:00:00.000Z",
+    };
+
+    public async getRadar (): Promise<Radar> {
+        if (this.error) {
+            throw this.error;
+        }
+
+        return this.radar;
+    }
+}
+
 before(async () => {
     rateLimiter = new RateLimiter({
         enabled: false,
@@ -230,12 +274,14 @@ before(async () => {
     stormRepository = new TestStormRepository();
     spaghettiRepository = new TestSpaghettiRepository();
     forecastWeatherRepository = new TestForecastWeatherRepository();
+    mapTileRepository = new TestMapTileRepository();
+    radarRepository = new TestRadarRepository();
     server = new Server({
         http: {
             host: "127.0.0.1",
             port: 0,
         },
-    }, rateLimiter, createUseCases(stormRepository, spaghettiRepository, forecastWeatherRepository));
+    }, rateLimiter, createUseCases(stormRepository, spaghettiRepository, forecastWeatherRepository, mapTileRepository, radarRepository));
 
     const listener = await server.listen();
     const address = listener.address();
@@ -334,6 +380,53 @@ test("GET /v1/weather/forecast maps an upstream error to 502", async () => {
         assert.equal(response.status, 502);
     } finally {
         forecastWeatherRepository.error = null;
+    }
+});
+
+test("GET /v1/map-tiles returns a binary OpenWeather tile", async () => {
+    const response = await fetch(baseUrl + "/v1/map-tiles/temperature/3/6/3");
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(Buffer.from(await response.arrayBuffer()).toString(), "png");
+});
+
+test("GET /v1/map-tiles rejects invalid layer and tile coordinates", async () => {
+    const invalidLayer = await fetch(baseUrl + "/v1/map-tiles/clouds/3/6/3");
+    const invalidZoom = await fetch(baseUrl + "/v1/map-tiles/windSpeed/0/0/0");
+    const invalidCoordinate = await fetch(baseUrl + "/v1/map-tiles/windSpeed/3/8/3");
+
+    assert.equal(invalidLayer.status, 400);
+    assert.equal(invalidZoom.status, 400);
+    assert.equal(invalidCoordinate.status, 400);
+});
+
+test("GET /v1/map-tiles maps an upstream error to 502", async () => {
+    mapTileRepository.error = new StormProviderError("OpenWeather tile failed.");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/map-tiles/windSpeed/3/6/3");
+        assert.equal(response.status, 502);
+    } finally {
+        mapTileRepository.error = null;
+    }
+});
+
+test("GET /v1/radar returns the RainViewer manifest envelope", async () => {
+    const response = await fetch(baseUrl + "/v1/radar");
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true, data: radarRepository.radar });
+});
+
+test("GET /v1/radar maps an upstream error to 502", async () => {
+    radarRepository.error = new StormProviderError("RainViewer failed.");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/radar");
+        assert.equal(response.status, 502);
+    } finally {
+        radarRepository.error = null;
     }
 });
 
@@ -566,6 +659,8 @@ function createUseCases (
     repository: StormRepository,
     spaghetti: SpaghettiRepository,
     forecastWeather: ForecastWeatherRepository = new TestForecastWeatherRepository(),
+    mapTile: MapTileRepository = new TestMapTileRepository(),
+    radar: RadarRepository = new TestRadarRepository(),
 ) {
     return {
         storm: {
@@ -576,6 +671,12 @@ function createUseCases (
         },
         weather: {
             getForecastWeather: new GetForecastWeatherUseCase(forecastWeather),
+        },
+        map: {
+            getMapTile: new GetMapTileUseCase(mapTile),
+        },
+        radar: {
+            getRadar: new GetRadarUseCase(radar),
         },
     };
 }
