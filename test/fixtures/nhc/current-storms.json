@@ -1,0 +1,21 @@
+{
+    "activeStorms": [
+        {
+            "id": "ep072026",
+            "name": "Genevieve",
+            "classification": "TS",
+            "intensity": "50",
+            "latitudeNumeric": 22.3,
+            "longitudeNumeric": -130.2,
+            "lastUpdate": "2026-07-31T21:00:00.000Z",
+            "forecastTrack": {
+                "issuance": "2026-07-31T21:00:00.000Z",
+                "kmzFile": "https://example.test/EP072026_031adv_TRACK.kmz"
+            },
+            "trackCone": {
+                "issuance": "2026-07-31T21:00:00.000Z",
+                "kmzFile": "https://example.test/EP072026_031adv_CONE.kmz"
+            }
+        }
+    ]
+}

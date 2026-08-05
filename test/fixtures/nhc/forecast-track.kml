@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+    <Document>
+        <Folder id="Forecast Track">
+            <Placemark>
+                <description><![CDATA[
+                    <table>
+                        <tr><td nowrap>Advisory Information</td></tr>
+                        <tr><td nowrap>Maximum Wind: 50 knots (60 mph)</td></tr>
+                    </table>
+                ]]></description>
+                <Point>
+                    <coordinates>-130.2,22.3,0</coordinates>
+                </Point>
+            </Placemark>
+            <Placemark>
+                <description><![CDATA[
+                    <table>
+                        <tr><td nowrap>12 hr Forecast</td></tr>
+                        <tr><td nowrap>Maximum Wind: 45 knots (50 mph)</td></tr>
+                    </table>
+                ]]></description>
+                <Point>
+                    <coordinates>-132.3,22.8,0</coordinates>
+                </Point>
+            </Placemark>
+            <Placemark>
+                <description><![CDATA[
+                    <table>
+                        <tr><td nowrap>24 hr Forecast</td></tr>
+                        <tr><td nowrap>Maximum Wind: 45 knots (50 mph)</td></tr>
+                    </table>
+                ]]></description>
+                <Point>
+                    <coordinates>-135.2,23.6,0</coordinates>
+                </Point>
+            </Placemark>
+        </Folder>
+    </Document>
+</kml>

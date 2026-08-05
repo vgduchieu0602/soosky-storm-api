@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "Class": "Point_Centroid",
+        "polygonlabel": "Centroid"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [118.7, 17.6]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Class": "Line_Line_0",
+        "polygonlabel": "TD"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[118.7, 17.6], [119, 18]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Class": "Poly_Cones",
+        "polygonlabel": "Uncertainty Cones"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[118.7, 17.6], [119, 18], [118.7, 17.6]]]
+      }
+    }
+  ]
+}
