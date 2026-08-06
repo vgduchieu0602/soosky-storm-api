@@ -10,6 +10,7 @@ import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWe
 import { MAP_LAYERS, MapLayer } from "../domain/entities/MapTile.js";
 import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
+import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import ClientError from "./ClientError.js";
 import formatResponseData from "./formatResponseData.js";
 import RateLimiter from "./RateLimiter.js";
@@ -30,6 +31,7 @@ interface ServerUseCases {
         getStormTrack: GetStormTrackUseCase;
         getStormCone: GetStormConeUseCase;
         getStormSpaghetti: GetStormSpaghettiUseCase;
+        getHistoricalStormTrack: GetHistoricalStormTrackUseCase;
     };
     weather: {
         getForecastWeather: GetForecastWeatherUseCase;
@@ -57,6 +59,7 @@ class Server {
         ["get", "/v1/storms/:stormId/track", this._GET_stormTrack],
         ["get", "/v1/storms/:stormId/cone", this._GET_stormCone],
         ["get", "/v1/storms/:stormId/spaghetti", this._GET_stormSpaghetti],
+        ["get", "/v1/storms/:stormId/history-track", this._GET_historicalStormTrack],
     ];
 
     public constructor (
@@ -269,6 +272,18 @@ class Server {
         }
 
         const data = await this._useCases.storm.getStormSpaghetti.execute({ stormId });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _GET_historicalStormTrack (request: Request, response: Response): Promise<void> {
+        const stormId = request.params.stormId;
+
+        if (typeof stormId !== "string" || !/^nhc:(AL|EP|CP)\d{6}$/.test(stormId)) {
+            throw new ClientError("Path param 'stormId' is invalid.");
+        }
+
+        const data = await this._useCases.storm.getHistoricalStormTrack.execute({ stormId });
 
         response.json({ ok: true, data });
     }

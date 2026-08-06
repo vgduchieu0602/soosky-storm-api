@@ -33,6 +33,19 @@ test("Forecast Weather cache keeps different units in separate entries", async (
     assert.equal(source.calls, 2);
 });
 
+test("Forecast Weather cache refreshes the least recently used location after reaching its memory capacity", async () => {
+    const source = new CountingForecastWeatherRepository();
+    const repository = new CachedForecastWeatherRepository(source, 86_400_000, Date.now, { maxEntries: 2, maxBytes: 10_000 });
+
+    await repository.getForecast({ lat: 10, lon: 106, units: "metric" });
+    await repository.getForecast({ lat: 11, lon: 106, units: "metric" });
+    await repository.getForecast({ lat: 10, lon: 106, units: "metric" });
+    await repository.getForecast({ lat: 12, lon: 106, units: "metric" });
+    await repository.getForecast({ lat: 11, lon: 106, units: "metric" });
+
+    assert.equal(source.calls, 4);
+});
+
 class CountingForecastWeatherRepository implements ForecastWeatherRepository {
     public calls = 0;
 

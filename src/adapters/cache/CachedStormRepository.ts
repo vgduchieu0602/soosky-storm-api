@@ -2,18 +2,9 @@ import StormSummary from "../../domain/entities/StormSummary.js";
 import StormCone from "../../domain/entities/StormCone.js";
 import StormTrack from "../../domain/entities/StormTrack.js";
 import StormRepository from "../../domain/repositories/IStormRepository.js";
+import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 export { CachedStormRepository as default };
-
-interface CachedTrack {
-    expiresAt: number;
-    value: StormTrack;
-}
-
-interface CachedCone {
-    expiresAt: number;
-    value: StormCone;
-}
 
 interface CachedActiveStorms {
     expiresAt: number;
@@ -22,16 +13,43 @@ interface CachedActiveStorms {
 
 const ACTIVE_STORMS_CACHE_TTL_MS = 43_200_000;
 
+interface CacheLimits {
+    maxEntries: number;
+    maxBytes: number;
+}
+
+interface StormCacheLimits {
+    track: CacheLimits;
+    cone: CacheLimits;
+}
+
+const DEFAULT_CACHE_LIMITS: StormCacheLimits = {
+    track: { maxEntries: 200, maxBytes: 12 * 1024 * 1024 },
+    cone: { maxEntries: 40, maxBytes: 32 * 1024 * 1024 },
+};
+
 class CachedStormRepository implements StormRepository {
-    private readonly _tracks = new Map<string, CachedTrack>();
-    private readonly _cones = new Map<string, CachedCone>();
+    private readonly _tracks: BoundedTtlLruCache<StormTrack>;
+    private readonly _cones: BoundedTtlLruCache<StormCone>;
     private _activeStorms: CachedActiveStorms | null = null;
 
     public constructor (
         private readonly _source: StormRepository,
         private readonly _ttlMs: number,
         private readonly _now: () => number = Date.now,
-    ) {}
+        limits: StormCacheLimits = DEFAULT_CACHE_LIMITS,
+    ) {
+        this._tracks = new BoundedTtlLruCache<StormTrack>({
+            ...limits.track,
+            now: this._now,
+            estimateBytes: getJsonByteSize,
+        });
+        this._cones = new BoundedTtlLruCache<StormCone>({
+            ...limits.cone,
+            now: this._now,
+            estimateBytes: getJsonByteSize,
+        });
+    }
 
     public async getActiveStorms (): Promise<StormSummary[]> {
         const now = this._now();
@@ -54,8 +72,8 @@ class CachedStormRepository implements StormRepository {
         const now = this._now();
         const cached = this._tracks.get(stormId);
 
-        if (cached && now < cached.expiresAt) {
-            return cached.value;
+        if (cached) {
+            return cached;
         }
 
         const expiresAt = now + this._ttlMs;
@@ -65,7 +83,7 @@ class CachedStormRepository implements StormRepository {
             cachedUntil: new Date(expiresAt).toISOString(),
         };
 
-        this._tracks.set(stormId, { expiresAt, value });
+        this._tracks.set(stormId, value, this._ttlMs);
 
         return value;
     }
@@ -74,8 +92,8 @@ class CachedStormRepository implements StormRepository {
         const now = this._now();
         const cached = this._cones.get(stormId);
 
-        if (cached && now < cached.expiresAt) {
-            return cached.value;
+        if (cached) {
+            return cached;
         }
 
         const cone = await this._source.getStormCone(stormId);
@@ -90,8 +108,12 @@ class CachedStormRepository implements StormRepository {
             cachedUntil: new Date(expiresAt).toISOString(),
         };
 
-        this._cones.set(stormId, { expiresAt, value });
+        this._cones.set(stormId, value, this._ttlMs);
 
         return value;
     }
+}
+
+function getJsonByteSize (value: unknown): number {
+    return Buffer.byteLength(JSON.stringify(value), "utf-8");
 }

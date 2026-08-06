@@ -36,7 +36,7 @@ const config = {
     rateLimit: {
         enabled: process.env.RATE_LIMIT_ENABLED !== "false",
         windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000"),
-        globalMax: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX || "120"),
         ipMax: parseInt(process.env.RATE_LIMIT_IP_MAX || "60"),
+        maxTrackedIps: parseInt(process.env.RATE_LIMIT_MAX_TRACKED_IPS || "10000"),
     },
 };

@@ -50,6 +50,12 @@ class MemoryForecastWeatherRepository implements ForecastWeatherRepository {
             windDirection: "ESE",
             pop: 0.45,
             rain1hMm: null,
+            weather: [{
+                id: 800,
+                main: "Clear",
+                description: "clear sky",
+                icon: "01d",
+            }],
         }],
         daily: [],
     };

@@ -1,29 +1,39 @@
 import ForecastWeather from "../../domain/entities/ForecastWeather.js";
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
+import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
-interface CachedForecast {
-    expiresAt: number;
-    value: ForecastWeather;
+interface CacheLimits {
+    maxEntries: number;
+    maxBytes: number;
 }
+
+const DEFAULT_CACHE_LIMITS: CacheLimits = { maxEntries: 250, maxBytes: 32 * 1024 * 1024 };
 
 export { CachedForecastWeatherRepository as default };
 
 class CachedForecastWeatherRepository implements ForecastWeatherRepository {
-    private readonly _forecasts = new Map<string, CachedForecast>();
+    private readonly _forecasts: BoundedTtlLruCache<ForecastWeather>;
 
     public constructor (
         private readonly _source: ForecastWeatherRepository,
         private readonly _ttlMs: number,
         private readonly _now: () => number = Date.now,
-    ) {}
+        limits: CacheLimits = DEFAULT_CACHE_LIMITS,
+    ) {
+        this._forecasts = new BoundedTtlLruCache<ForecastWeather>({
+            ...limits,
+            now: this._now,
+            estimateBytes: getJsonByteSize,
+        });
+    }
 
     public async getForecast (query: ForecastWeatherQuery): Promise<ForecastWeather> {
         const key = query.lat + ":" + query.lon + ":" + query.units;
         const now = this._now();
         const cached = this._forecasts.get(key);
 
-        if (cached && now < cached.expiresAt) {
-            return cached.value;
+        if (cached) {
+            return cached;
         }
 
         const expiresAt = now + this._ttlMs;
@@ -33,8 +43,12 @@ class CachedForecastWeatherRepository implements ForecastWeatherRepository {
             cachedUntil: new Date(expiresAt).toISOString(),
         };
 
-        this._forecasts.set(key, { expiresAt, value });
+        this._forecasts.set(key, value, this._ttlMs);
 
         return value;
     }
+}
+
+function getJsonByteSize (value: unknown): number {
+    return Buffer.byteLength(JSON.stringify(value), "utf-8");
 }

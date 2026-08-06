@@ -80,6 +80,14 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
     });
 });
 
+test("NHC storm repository treats NHC's top-level empty array as no active storms", async () => {
+    const repository = new NhcStormRepository(CURRENT_STORMS_URL, async () => {
+        return new Response("[]", { status: 200 });
+    });
+
+    assert.deepEqual(await repository.getActiveStorms(), []);
+});
+
 test("NHC storm repository reports a storm that is not active", async () => {
     const repository = new NhcStormRepository(CURRENT_STORMS_URL, async () => {
         return new Response(JSON.stringify({ activeStorms: [] }), { status: 200 });

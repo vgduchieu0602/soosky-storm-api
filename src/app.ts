@@ -3,10 +3,12 @@ import CachedSpaghettiRepository from "./adapters/cache/CachedSpaghettiRepositor
 import CachedForecastWeatherRepository from "./adapters/cache/CachedForecastWeatherRepository.js";
 import CachedMapTileRepository from "./adapters/cache/CachedMapTileRepository.js";
 import CachedRadarRepository from "./adapters/cache/CachedRadarRepository.js";
+import CachedHistoricalStormTrackRepository from "./adapters/cache/CachedHistoricalStormTrackRepository.js";
 import GdacsStormConeRepository from "./adapters/gdacs/GdacsStormConeRepository.js";
 import connectMongo from "./adapters/mongo/connectMongo.js";
 import NhcSpaghettiRepository from "./adapters/nhc/NhcSpaghettiRepository.js";
 import NhcStormRepository from "./adapters/nhc/NhcStormRepository.js";
+import NhcHistoricalStormTrackRepository from "./adapters/nhc/NhcHistoricalStormTrackRepository.js";
 import OpenWeatherForecastRepository from "./adapters/openweather/OpenWeatherForecastRepository.js";
 import OpenWeatherMapTileRepository from "./adapters/openweather/OpenWeatherMapTileRepository.js";
 import RainViewerRadarRepository from "./adapters/rainviewer/RainViewerRadarRepository.js";
@@ -19,6 +21,7 @@ import GetStormTrackUseCase from "./domain/use-cases/storm/GetStormTrackUseCase.
 import GetForecastWeatherUseCase from "./domain/use-cases/weather/GetForecastWeatherUseCase.js";
 import GetMapTileUseCase from "./domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "./domain/use-cases/radar/GetRadarUseCase.js";
+import GetHistoricalStormTrackUseCase from "./domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import RateLimiter from "./http/RateLimiter.js";
 import Server from "./http/Server.js";
 
@@ -52,13 +55,17 @@ const mapTileRepository = new CachedMapTileRepository(
     new OpenWeatherMapTileRepository(OPENWEATHER_API_KEY),
     43_200_000,
 );
-const radarRepository = new CachedRadarRepository(new RainViewerRadarRepository(), 43_200_000);
+const radarRepository = new CachedRadarRepository(new RainViewerRadarRepository(), 3_600_000);
+const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
+    new NhcHistoricalStormTrackRepository(NHC_CURRENT_STORMS_URL),
+);
 const useCases = {
     storm: {
         getActiveStorms: new GetActiveStormsUseCase(stormRepository),
         getStormTrack: new GetStormTrackUseCase(stormRepository),
         getStormCone: new GetStormConeUseCase(stormRepository),
         getStormSpaghetti: new GetStormSpaghettiUseCase(spaghettiRepository),
+        getHistoricalStormTrack: new GetHistoricalStormTrackUseCase(historicalStormTrackRepository),
     },
     weather: {
         getForecastWeather: new GetForecastWeatherUseCase(forecastWeatherRepository),

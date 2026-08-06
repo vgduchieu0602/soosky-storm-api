@@ -1,17 +1,16 @@
 export { RateLimiter as default };
 export type { RateLimiterOptions, RateLimitScope };
 
-type RateLimitScope = "IP" | "GLOBAL" | null;
+type RateLimitScope = "IP" | null;
 
 interface RateLimiterOptions {
     enabled: boolean;
     windowMs: number;
-    globalMax: number;
     ipMax: number;
+    maxTrackedIps?: number;
 }
 
 class RateLimiter {
-    private _globalRequests: number[] = [];
     private readonly _requestsByIp = new Map<string, number[]>();
     private readonly _sweepTimer: NodeJS.Timeout;
 
@@ -27,21 +26,20 @@ class RateLimiter {
             return null;
         }
 
-        this._globalRequests = this._prune(this._globalRequests, now);
-
-        if (this._globalRequests.length >= this._options.globalMax) {
-            return "GLOBAL";
-        }
-
         const ipRequests = this._prune(this._requestsByIp.get(ip) ?? [], now);
 
         if (ipRequests.length >= this._options.ipMax) {
+            this._remember(ip, ipRequests);
             return "IP";
         }
 
-        this._globalRequests.push(now);
+        if (ipRequests.length === 0) {
+            this._requestsByIp.delete(ip);
+        }
+
+        this._makeRoomFor(ip, now);
         ipRequests.push(now);
-        this._requestsByIp.set(ip, ipRequests);
+        this._remember(ip, ipRequests);
 
         return null;
     }
@@ -59,8 +57,6 @@ class RateLimiter {
     private _sweep (): void {
         const now = Date.now();
 
-        this._globalRequests = this._prune(this._globalRequests, now);
-
         for (const [ip, timestamps] of this._requestsByIp.entries()) {
             const activeTimestamps = this._prune(timestamps, now);
 
@@ -70,6 +66,43 @@ class RateLimiter {
             }
 
             this._requestsByIp.set(ip, activeTimestamps);
+        }
+    }
+
+    private _makeRoomFor (ip: string, now: number): void {
+        this._sweepAt(now);
+
+        if (this._requestsByIp.has(ip)) {
+            return;
+        }
+
+        const maxTrackedIps = this._options.maxTrackedIps ?? 10_000;
+
+        while (this._requestsByIp.size >= maxTrackedIps) {
+            const oldestIp = this._requestsByIp.keys().next().value;
+
+            if (oldestIp === undefined) {
+                return;
+            }
+
+            this._requestsByIp.delete(oldestIp);
+        }
+    }
+
+    private _remember (ip: string, timestamps: number[]): void {
+        this._requestsByIp.delete(ip);
+        this._requestsByIp.set(ip, timestamps);
+    }
+
+    private _sweepAt (now: number): void {
+        for (const [ip, timestamps] of this._requestsByIp.entries()) {
+            const activeTimestamps = this._prune(timestamps, now);
+
+            if (activeTimestamps.length === 0) {
+                this._requestsByIp.delete(ip);
+            } else {
+                this._requestsByIp.set(ip, activeTimestamps);
+            }
         }
     }
 }

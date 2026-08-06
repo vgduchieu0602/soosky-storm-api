@@ -50,6 +50,17 @@ test("Map tile cache evicts the least-recently-used successful entry above 500 e
     assert.equal(source.calls, 502);
 });
 
+test("Map tile cache does not retain a tile larger than its byte budget", async () => {
+    const source = new CountingMapTileRepository();
+    const repository = new CachedMapTileRepository(source, TTL_MS, Date.now, { maxEntries: 2, maxBytes: 1 });
+    const query: MapTileQuery = { layer: "windSpeed", z: 3, x: 6, y: 3 };
+
+    await repository.getTile(query);
+    await repository.getTile(query);
+
+    assert.equal(source.calls, 2);
+});
+
 class CountingMapTileRepository implements MapTileRepository {
     public calls = 0;
     public throwNext = false;

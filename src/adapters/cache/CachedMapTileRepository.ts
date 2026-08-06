@@ -1,58 +1,44 @@
 import MapTile, { MapTileQuery } from "../../domain/entities/MapTile.js";
 import MapTileRepository from "../../domain/repositories/IMapTileRepository.js";
+import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
-const MAX_ENTRIES = 500;
-
-interface CachedMapTile {
-    expiresAt: number;
-    value: MapTile;
+interface CacheLimits {
+    maxEntries: number;
+    maxBytes: number;
 }
+
+const DEFAULT_CACHE_LIMITS: CacheLimits = { maxEntries: 500, maxBytes: 50 * 1024 * 1024 };
 
 export { CachedMapTileRepository as default };
 
 class CachedMapTileRepository implements MapTileRepository {
-    private readonly _tiles = new Map<string, CachedMapTile>();
+    private readonly _tiles: BoundedTtlLruCache<MapTile>;
 
     public constructor (
         private readonly _source: MapTileRepository,
         private readonly _ttlMs: number,
         private readonly _now: () => number = Date.now,
-    ) {}
+        limits: CacheLimits = DEFAULT_CACHE_LIMITS,
+    ) {
+        this._tiles = new BoundedTtlLruCache({
+            ...limits,
+            now: this._now,
+            estimateBytes: (tile) => tile.buffer.byteLength,
+        });
+    }
 
     public async getTile (query: MapTileQuery): Promise<MapTile> {
         const key = query.layer + ":" + query.z + ":" + query.x + ":" + query.y;
-        const now = this._now();
         const cached = this._tiles.get(key);
 
-        if (cached && now < cached.expiresAt) {
-            this._tiles.delete(key);
-            this._tiles.set(key, cached);
-            return cached.value;
+        if (cached) {
+            return cached;
         }
 
         const value = await this._source.getTile(query);
 
-        this._tiles.set(key, { expiresAt: now + this._ttlMs, value });
-        this._evict(now);
+        this._tiles.set(key, value, this._ttlMs);
 
         return value;
-    }
-
-    private _evict (now: number): void {
-        for (const [key, cached] of this._tiles) {
-            if (now >= cached.expiresAt) {
-                this._tiles.delete(key);
-            }
-        }
-
-        while (this._tiles.size > MAX_ENTRIES) {
-            const oldestKey = this._tiles.keys().next().value;
-
-            if (oldestKey === undefined) {
-                return;
-            }
-
-            this._tiles.delete(oldestKey);
-        }
     }
 }

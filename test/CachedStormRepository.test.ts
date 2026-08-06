@@ -68,6 +68,23 @@ test("Storm Cone cache reuses an available cone until the two-hour TTL expires",
     assert.equal(refreshed.cachedUntil, "2026-08-05T04:00:00.000Z");
 });
 
+test("Storm caches refresh an older track and do not retain a cone larger than its byte budget", async () => {
+    const source = new CountingStormRepository();
+    const repository = new CachedStormRepository(source, 7_200_000, Date.now, {
+        track: { maxEntries: 1, maxBytes: 10_000 },
+        cone: { maxEntries: 1, maxBytes: 1 },
+    });
+
+    await repository.getStormTrack("nhc:EP072026");
+    await repository.getStormTrack("nhc:EP082026");
+    await repository.getStormTrack("nhc:EP072026");
+    assert.equal(source.trackCalls, 3);
+
+    await repository.getStormCone("nhc:EP072026");
+    await repository.getStormCone("nhc:EP072026");
+    assert.equal(source.coneCalls, 2);
+});
+
 class CountingStormRepository implements StormRepository {
     public listCalls = 0;
     public trackCalls = 0;

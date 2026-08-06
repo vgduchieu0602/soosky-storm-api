@@ -1,28 +1,38 @@
 import StormSpaghetti from "../../domain/entities/StormSpaghetti.js";
 import SpaghettiRepository from "../../domain/repositories/ISpaghettiRepository.js";
+import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 export { CachedSpaghettiRepository as default };
 
-interface CachedSpaghetti {
-    expiresAt: number;
-    value: StormSpaghetti;
+interface CacheLimits {
+    maxEntries: number;
+    maxBytes: number;
 }
 
+const DEFAULT_CACHE_LIMITS: CacheLimits = { maxEntries: 200, maxBytes: 16 * 1024 * 1024 };
+
 class CachedSpaghettiRepository implements SpaghettiRepository {
-    private readonly _values = new Map<string, CachedSpaghetti>();
+    private readonly _values: BoundedTtlLruCache<StormSpaghetti>;
 
     public constructor (
         private readonly _source: SpaghettiRepository,
         private readonly _ttlMs: number,
         private readonly _now: () => number = Date.now,
-    ) {}
+        limits: CacheLimits = DEFAULT_CACHE_LIMITS,
+    ) {
+        this._values = new BoundedTtlLruCache<StormSpaghetti>({
+            ...limits,
+            now: this._now,
+            estimateBytes: getJsonByteSize,
+        });
+    }
 
     public async getStormSpaghetti (stormId: string): Promise<StormSpaghetti> {
         const now = this._now();
         const cached = this._values.get(stormId);
 
-        if (cached && now < cached.expiresAt) {
-            return cached.value;
+        if (cached) {
+            return cached;
         }
 
         const result = await this._source.getStormSpaghetti(stormId);
@@ -37,8 +47,12 @@ class CachedSpaghettiRepository implements SpaghettiRepository {
             cachedUntil: new Date(expiresAt).toISOString(),
         };
 
-        this._values.set(stormId, { expiresAt, value });
+        this._values.set(stormId, value, this._ttlMs);
 
         return value;
     }
+}
+
+function getJsonByteSize (value: unknown): number {
+    return Buffer.byteLength(JSON.stringify(value), "utf-8");
 }

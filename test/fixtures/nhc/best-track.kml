@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+    <Document>
+        <Folder id="Best Track Points">
+            <Placemark>
+                <description><![CDATA[Maximum Wind: 90 knots (105 mph)]]></description>
+                <TimeStamp><when>2026-07-31T18:00:00Z</when></TimeStamp>
+                <Point><coordinates>-129.9,22.1,0</coordinates></Point>
+            </Placemark>
+            <Placemark>
+                <description><![CDATA[Maximum Wind: 50 knots (60 mph)]]></description>
+                <TimeStamp><when>2026-07-31T06:00:00Z</when></TimeStamp>
+                <Point><coordinates>-128.2,21.4,0</coordinates></Point>
+            </Placemark>
+            <Placemark>
+                <description><![CDATA[Maximum Wind: 70 knots (80 mph)]]></description>
+                <TimeStamp><when>2026-07-31T12:00:00Z</when></TimeStamp>
+                <Point><coordinates>-129.1,21.8,0</coordinates></Point>
+            </Placemark>
+        </Folder>
+    </Document>
+</kml>

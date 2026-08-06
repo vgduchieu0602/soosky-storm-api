@@ -1,5 +1,12 @@
 type ForecastUnits = "standard" | "metric" | "imperial";
 
+interface ForecastWeatherCondition {
+    id: number;
+    main: string;
+    description: string;
+    icon: string;
+}
+
 interface ForecastWeatherPoint {
     time: string;
     temp: number | null;
@@ -11,6 +18,7 @@ interface ForecastWeatherPoint {
     windDirection: string | null;
     pop: number | null;
     rain1hMm: number | null;
+    weather: ForecastWeatherCondition[];
 }
 
 interface ForecastWeather {
@@ -31,4 +39,4 @@ interface ForecastWeather {
 }
 
 export { ForecastWeather as default };
-export type { ForecastUnits, ForecastWeatherPoint };
+export type { ForecastUnits, ForecastWeatherCondition, ForecastWeatherPoint };

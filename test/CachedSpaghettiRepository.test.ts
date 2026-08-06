@@ -35,6 +35,17 @@ test("Spaghetti cache does not cache unavailable results", async () => {
     assert.equal(second.cachedUntil, null);
 });
 
+test("Spaghetti cache refreshes the least recently used storm when capacity is reached", async () => {
+    const source = new CountingSpaghettiRepository();
+    const repository = new CachedSpaghettiRepository(source, 7_200_000, Date.now, { maxEntries: 1, maxBytes: 10_000 });
+
+    await repository.getStormSpaghetti("nhc:EP072026");
+    await repository.getStormSpaghetti("nhc:EP082026");
+    await repository.getStormSpaghetti("nhc:EP072026");
+
+    assert.equal(source.calls, 3);
+});
+
 class CountingSpaghettiRepository implements SpaghettiRepository {
     public calls = 0;
 

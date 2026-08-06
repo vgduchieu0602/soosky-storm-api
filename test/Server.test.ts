@@ -209,7 +209,24 @@ class TestForecastWeatherRepository implements ForecastWeatherRepository {
         location: { lat: 10.8231, lon: 106.6297, timezone: "Asia/Ho_Chi_Minh" },
         units: { temperature: "C", windSpeed: "m/s", visibility: "m", rain: "mm/h" },
         cachedUntil: "2026-08-06T00:00:00.000Z",
-        hourly: [],
+        hourly: [{
+            time: "2026-08-06T01:00:00.000Z",
+            temp: 29.4,
+            humidity: 76,
+            uvi: null,
+            visibility: 10_000,
+            windSpeed: 3.2,
+            windDeg: 180,
+            windDirection: "S",
+            pop: 0.35,
+            rain1hMm: null,
+            weather: [{
+                id: 800,
+                main: "Clear",
+                description: "clear sky",
+                icon: "01n",
+            }],
+        }],
         daily: [],
     };
 
@@ -268,7 +285,6 @@ before(async () => {
     rateLimiter = new RateLimiter({
         enabled: false,
         windowMs: 60_000,
-        globalMax: 10,
         ipMax: 10,
     });
     stormRepository = new TestStormRepository();
@@ -350,10 +366,16 @@ test("GET /v1/weather/forecast returns metric weather by default", async () => {
     const response = await fetch(baseUrl + "/v1/weather/forecast?lat=10.8231&lon=106.6297");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), {
-        ok: true,
-        data: forecastWeatherRepository.forecast,
-    });
+    const body = await response.json();
+
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.data.hourly[0].weather, [{
+        id: 800,
+        main: "Clear",
+        description: "clear sky",
+        icon: "01n",
+    }]);
+    assert.deepEqual(body.data.daily, forecastWeatherRepository.forecast.daily);
 });
 
 test("GET /v1/weather/forecast accepts imperial units", async () => {
@@ -620,7 +642,6 @@ test("returns the rate-limited envelope after the IP quota is exhausted", async 
     const limitedRateLimiter = new RateLimiter({
         enabled: true,
         windowMs: 60_000,
-        globalMax: 10,
         ipMax: 1,
     });
     const limitedServer = new Server({

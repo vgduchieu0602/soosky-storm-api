@@ -113,6 +113,10 @@ class NhcStormRepository implements StormRepository {
             throw new StormProviderError("NHC CurrentStorms response was not valid JSON.", { cause: error });
         }
 
+        if (Array.isArray(payload) && payload.length === 0) {
+            return [];
+        }
+
         if (!isRecord(payload) || !Array.isArray(payload.activeStorms)) {
             throw new StormProviderError("NHC CurrentStorms response did not contain activeStorms.");
         }
