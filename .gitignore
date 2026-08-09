@@ -5,5 +5,8 @@ coverage
 *.log
 mongo-data
 docs
-*.p8
-secrets
+
+# APNs private keys
+credentials/apns/*.p8
+
+.superpowers
