@@ -11,7 +11,7 @@ interface CachedActiveStorms {
     value: StormSummary[];
 }
 
-const ACTIVE_STORMS_CACHE_TTL_MS = 43_200_000;
+const ACTIVE_STORMS_CACHE_TTL_MS = 3_600_000;
 
 interface CacheLimits {
     maxEntries: number;

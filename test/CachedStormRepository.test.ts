@@ -29,7 +29,7 @@ test("Storm Track cache reuses a normalized track until the two-hour TTL expires
     assert.equal(refreshed.cachedUntil, "2026-08-04T04:00:00.000Z");
 });
 
-test("Storm List cache reuses an active-storm list for 12 hours, including an empty list", async () => {
+test("Storm List cache reuses an active-storm list for one hour, including an empty list", async () => {
     const source = new CountingStormRepository();
     let now = Date.parse("2026-08-05T00:00:00.000Z");
     const repository = new CachedStormRepository(source, 7_200_000, () => now);
@@ -39,7 +39,12 @@ test("Storm List cache reuses an active-storm list for 12 hours, including an em
 
     assert.equal(source.listCalls, 1);
 
-    now = Date.parse("2026-08-05T12:00:00.000Z");
+    now = Date.parse("2026-08-05T00:59:59.000Z");
+    await repository.getActiveStorms();
+
+    assert.equal(source.listCalls, 1);
+
+    now = Date.parse("2026-08-05T01:00:00.000Z");
     await repository.getActiveStorms();
 
     assert.equal(source.listCalls, 2);

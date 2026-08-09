@@ -4,9 +4,9 @@ import CachedRadarRepository from "../src/adapters/cache/CachedRadarRepository.j
 import Radar from "../src/domain/entities/Radar.js";
 import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
 
-const TTL_MS = 3_600_000;
+const TTL_MS = 43_200_000;
 
-test("Radar cache reuses successful metadata until its exact one-hour expiry", async () => {
+test("Radar cache reuses successful metadata until its exact 12-hour expiry", async () => {
     const source = new CountingRadarRepository();
     let now = Date.parse("2026-08-05T00:00:00.000Z");
     const repository = new CachedRadarRepository(source, TTL_MS, () => now);
@@ -14,13 +14,13 @@ test("Radar cache reuses successful metadata until its exact one-hour expiry", a
     const first = await repository.getRadar();
     const second = await repository.getRadar();
     assert.equal(source.calls, 1);
-    assert.equal(first.cachedUntil, "2026-08-05T01:00:00.000Z");
-    assert.equal(second.cachedUntil, "2026-08-05T01:00:00.000Z");
+    assert.equal(first.cachedUntil, "2026-08-05T12:00:00.000Z");
+    assert.equal(second.cachedUntil, "2026-08-05T12:00:00.000Z");
 
     now += TTL_MS;
     const refreshed = await repository.getRadar();
     assert.equal(source.calls, 2);
-    assert.equal(refreshed.cachedUntil, "2026-08-05T02:00:00.000Z");
+    assert.equal(refreshed.cachedUntil, "2026-08-06T00:00:00.000Z");
 });
 
 test("Radar cache does not cache upstream failures", async () => {

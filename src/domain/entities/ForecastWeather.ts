@@ -21,22 +21,32 @@ interface ForecastWeatherPoint {
     weather: ForecastWeatherCondition[];
 }
 
+interface WeatherUnits {
+    temperature: "K" | "C" | "F";
+    windSpeed: "m/s" | "mph";
+    visibility: "m";
+    rain: "mm/h";
+}
+
+interface WeatherLocation {
+    lat: number;
+    lon: number;
+    timezone: string | null;
+}
+
 interface ForecastWeather {
-    location: {
-        lat: number;
-        lon: number;
-        timezone: string | null;
-    };
-    units: {
-        temperature: "K" | "C" | "F";
-        windSpeed: "m/s" | "mph";
-        visibility: "m";
-        rain: "mm/h";
-    };
+    location: WeatherLocation;
+    units: WeatherUnits;
     cachedUntil: string | null;
     hourly: ForecastWeatherPoint[];
     daily: ForecastWeatherPoint[];
 }
 
 export { ForecastWeather as default };
-export type { ForecastUnits, ForecastWeatherCondition, ForecastWeatherPoint };
+export type {
+    ForecastUnits,
+    ForecastWeatherCondition,
+    ForecastWeatherPoint,
+    WeatherLocation,
+    WeatherUnits,
+};

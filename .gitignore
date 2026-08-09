@@ -5,3 +5,5 @@ coverage
 *.log
 mongo-data
 docs
+*.p8
+secrets

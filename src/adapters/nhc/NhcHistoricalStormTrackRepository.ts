@@ -1,8 +1,10 @@
+import { gunzipSync } from "node:zlib";
 import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
 import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
 import extractKmlFromKmz from "./extractKmlFromKmz.js";
+import parseNhcBestTrackDeck from "./parseNhcBestTrackDeck.js";
 import parseNhcBestTrackKml from "./parseNhcBestTrackKml.js";
 
 export { NhcHistoricalStormTrackRepository as default };
@@ -15,14 +17,24 @@ interface NhcHistoricalActiveStorm {
     bestTrackUrl: string | null;
 }
 
+interface NhcArchiveAsset {
+    stormCode: string;
+    url: string;
+}
+
 class NhcHistoricalStormTrackRepository implements HistoricalStormTrackRepository {
     public constructor (
         private readonly _currentStormsUrl: string,
         private readonly _fetcher: typeof fetch = fetch,
+        private readonly _archiveUrl: string | null = null,
     ) {}
 
     public async getHistoricalStormTrack (stormId: string): Promise<HistoricalStormTrack> {
-        const storm = await this._getActiveStorm(stormId);
+        const storm = await this._findActiveStorm(stormId);
+
+        if (!storm) {
+            return this._getArchivedStormTrack(stormId);
+        }
 
         if (!storm.bestTrackUrl) {
             return {
@@ -53,14 +65,71 @@ class NhcHistoricalStormTrackRepository implements HistoricalStormTrackRepositor
         };
     }
 
-    private async _getActiveStorm (stormId: string): Promise<NhcHistoricalActiveStorm> {
-        const storm = (await this._getCurrentStorms()).find((candidate) => "nhc:" + candidate.id.toUpperCase() === stormId);
+    private async _getArchivedStormTrack (stormId: string): Promise<HistoricalStormTrack> {
+        const asset = this._getArchiveAsset(stormId);
 
-        if (!storm) {
+        if (!asset) {
             throw new StormNotFoundError(stormId);
         }
 
-        return storm;
+        const response = await this._fetchArchive(asset.url);
+
+        if (!response) {
+            return this._notAvailableArchive(stormId, asset.stormCode);
+        }
+
+        const history = parseNhcBestTrackDeck(await this._readArchive(response));
+
+        if (!history.length) {
+            return this._notAvailableArchive(stormId, asset.stormCode);
+        }
+
+        return {
+            stormId,
+            name: asset.stormCode,
+            source: "nhc",
+            trackKind: "best_track",
+            cachedUntil: null,
+            availability: "available",
+            history,
+        };
+    }
+
+    private _getArchiveAsset (stormId: string): NhcArchiveAsset | null {
+        const match = /^nhc:(AL|EP|CP)(\d{2})(\d{4})$/.exec(stormId);
+        const basin = match?.[1];
+        const stormNumber = match?.[2];
+        const year = match?.[3];
+
+        if (!this._archiveUrl || !basin || !stormNumber || !year) {
+            return null;
+        }
+
+        const fileName = "b" + basin.toLowerCase() + stormNumber + year + ".dat.gz";
+
+        return {
+            stormCode: basin + stormNumber + year,
+            url: this._archiveUrl.replace(/\/+$/, "") + "/" + year + "/" + fileName,
+        };
+    }
+
+    private _notAvailableArchive (stormId: string, stormCode: string): HistoricalStormTrack {
+        return {
+            stormId,
+            name: stormCode,
+            source: "nhc",
+            trackKind: null,
+            cachedUntil: null,
+            availability: "not_available",
+            reason: NOT_AVAILABLE_REASON,
+            history: [],
+        };
+    }
+
+    private async _findActiveStorm (stormId: string): Promise<NhcHistoricalActiveStorm | null> {
+        const storm = (await this._getCurrentStorms()).find((candidate) => "nhc:" + candidate.id.toUpperCase() === stormId);
+
+        return storm ?? null;
     }
 
     private async _getCurrentStorms (): Promise<NhcHistoricalActiveStorm[]> {
@@ -91,6 +160,42 @@ class NhcHistoricalStormTrackRepository implements HistoricalStormTrackRepositor
             return Buffer.from(await response.arrayBuffer());
         } catch (error) {
             throw new StormProviderError("NHC best-track asset could not be read.", { cause: error });
+        }
+    }
+
+    private async _fetchArchive (url: string): Promise<Response | null> {
+        let response: Response;
+
+        try {
+            response = await this._fetcher(url, {
+                headers: {
+                    Accept: "application/gzip",
+                    "User-Agent": "soosky-storm-api/1.0",
+                },
+                signal: AbortSignal.timeout(10_000),
+            });
+        } catch (error) {
+            throw new StormProviderError("NHC archive request could not be completed.", { cause: error });
+        }
+
+        if (response.status === 404) {
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new StormProviderError("NHC archive request failed with HTTP " + response.status + ".");
+        }
+
+        return response;
+    }
+
+    private async _readArchive (response: Response): Promise<string> {
+        try {
+            const compressed = Buffer.from(await response.arrayBuffer());
+
+            return gunzipSync(compressed).toString("utf-8");
+        } catch (error) {
+            throw new StormProviderError("NHC archive response was not a valid gzip file.", { cause: error });
         }
     }
 

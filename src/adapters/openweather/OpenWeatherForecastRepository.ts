@@ -1,9 +1,27 @@
-import ForecastWeather, { ForecastUnits, ForecastWeatherCondition, ForecastWeatherPoint } from "../../domain/entities/ForecastWeather.js";
+import ForecastWeather, { ForecastWeatherPoint } from "../../domain/entities/ForecastWeather.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
+import {
+    getUnits,
+    getWindDirection,
+    isRecord,
+    readOptionalNumber,
+    readRain1h,
+    readRequiredNumber,
+    readWeather,
+} from "./openWeatherFields.js";
 
 const HOURLY_TIMELINE_URL = "https://api.openweathermap.org/data/4.0/onecall/timeline/1h";
 const DAILY_TIMELINE_URL = "https://api.openweathermap.org/data/4.0/onecall/timeline/1day";
+const OPENWEATHER_HOST = "api.openweathermap.org";
+
+/**
+ * One Call 4.0 caps a timeline page at 20 hourly points and ignores a larger `cnt`,
+ * so extra hourly pages are followed to reach a usable mobile timeline. Ten daily
+ * points already cover the published daily range, so daily stays on one page.
+ */
+const MAX_HOURLY_PAGES = 3;
+const MAX_DAILY_PAGES = 1;
 
 export { OpenWeatherForecastRepository as default };
 
@@ -19,8 +37,8 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
         }
 
         const [hourly, daily] = await Promise.all([
-            this._getTimeline(HOURLY_TIMELINE_URL, query, "hourly"),
-            this._getTimeline(DAILY_TIMELINE_URL, query, "daily"),
+            this._getTimeline(HOURLY_TIMELINE_URL, query, "hourly", MAX_HOURLY_PAGES),
+            this._getTimeline(DAILY_TIMELINE_URL, query, "daily", MAX_DAILY_PAGES),
         ]);
 
         return {
@@ -40,13 +58,41 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
         baseUrl: string,
         query: ForecastWeatherQuery,
         timelineKind: "hourly" | "daily",
+        maxPages: number,
     ): Promise<OpenWeatherTimeline> {
-        const url = new URL(baseUrl);
-        url.searchParams.set("lat", String(query.lat));
-        url.searchParams.set("lon", String(query.lon));
-        url.searchParams.set("units", query.units);
-        url.searchParams.set("appid", this._apiKey ?? "");
+        const pointsByTime = new Map<string, ForecastWeatherPoint>();
+        const requestedUrls = new Set<string>();
+        let timezone: string | null = null;
+        let nextUrl: string | null = buildFirstPageUrl(baseUrl, query, this._apiKey ?? "");
 
+        for (let page = 0; page < maxPages && nextUrl; page += 1) {
+            if (requestedUrls.has(nextUrl)) {
+                break;
+            }
+
+            requestedUrls.add(nextUrl);
+
+            const payload = await this._getPage(nextUrl);
+            const parsed = parseTimeline(payload, timelineKind);
+
+            timezone = timezone ?? parsed.timezone;
+
+            for (const point of parsed.points) {
+                if (!pointsByTime.has(point.time)) {
+                    pointsByTime.set(point.time, point);
+                }
+            }
+
+            nextUrl = readNextPageUrl(payload);
+        }
+
+        return {
+            timezone,
+            points: [...pointsByTime.values()].sort((left, right) => Date.parse(left.time) - Date.parse(right.time)),
+        };
+    }
+
+    private async _getPage (url: string): Promise<unknown> {
         let response: Response;
 
         try {
@@ -65,21 +111,54 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
             throw new StormProviderError("OpenWeather request failed with HTTP " + response.status + ".");
         }
 
-        let payload: unknown;
-
         try {
-            payload = await response.json();
+            return await response.json();
         } catch (error) {
             throw new StormProviderError("OpenWeather response was not valid JSON.", { cause: error });
         }
-
-        return parseTimeline(payload, timelineKind);
     }
 }
 
 interface OpenWeatherTimeline {
     timezone: string | null;
     points: ForecastWeatherPoint[];
+}
+
+function buildFirstPageUrl (baseUrl: string, query: ForecastWeatherQuery, apiKey: string): string {
+    const url = new URL(baseUrl);
+
+    url.searchParams.set("lat", String(query.lat));
+    url.searchParams.set("lon", String(query.lon));
+    url.searchParams.set("units", query.units);
+    url.searchParams.set("appid", apiKey);
+
+    return url.toString();
+}
+
+/**
+ * OpenWeather returns `next` as a plain-HTTP URL carrying the API key, so the link is
+ * only used after the host is confirmed and the scheme is forced back to HTTPS.
+ */
+function readNextPageUrl (payload: unknown): string | null {
+    if (!isRecord(payload) || typeof payload.next !== "string" || !payload.next.trim()) {
+        return null;
+    }
+
+    let url: URL;
+
+    try {
+        url = new URL(payload.next);
+    } catch {
+        return null;
+    }
+
+    if (url.hostname !== OPENWEATHER_HOST) {
+        return null;
+    }
+
+    url.protocol = "https:";
+
+    return url.toString();
 }
 
 function parseTimeline (value: unknown, timelineKind: "hourly" | "daily"): OpenWeatherTimeline {
@@ -137,92 +216,4 @@ function readDailyTemp (value: unknown): number | null {
     }
 
     return readOptionalNumber(value, "day");
-}
-
-function readWeather (value: unknown): ForecastWeatherCondition[] {
-    if (!Array.isArray(value)) {
-        throw new StormProviderError("OpenWeather field [weather] was missing.");
-    }
-
-    return value.map((condition) => {
-        if (!isRecord(condition)) {
-            throw new StormProviderError("OpenWeather weather item was invalid.");
-        }
-
-        return {
-            id: readRequiredNumber(condition, "id"),
-            main: readRequiredString(condition, "main"),
-            description: readRequiredString(condition, "description"),
-            icon: readRequiredString(condition, "icon"),
-        };
-    });
-}
-
-function getUnits (units: ForecastUnits): ForecastWeather["units"] {
-    if (units === "standard") {
-        return { temperature: "K", windSpeed: "m/s", visibility: "m", rain: "mm/h" };
-    }
-
-    if (units === "imperial") {
-        return { temperature: "F", windSpeed: "mph", visibility: "m", rain: "mm/h" };
-    }
-
-    return { temperature: "C", windSpeed: "m/s", visibility: "m", rain: "mm/h" };
-}
-
-function getWindDirection (degrees: number): string {
-    const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-    const index = Math.round(((degrees % 360) + 360) % 360 / 22.5) % directions.length;
-
-    return directions[index] ?? "N";
-}
-
-function readRain1h (value: unknown): number | null {
-    if (value === undefined || value === null) {
-        return null;
-    }
-
-    if (!isRecord(value)) {
-        throw new StormProviderError("OpenWeather field [rain] was invalid.");
-    }
-
-    return readOptionalNumber(value, "1h");
-}
-
-function readRequiredNumber (value: Record<string, unknown>, key: string): number {
-    const number = readOptionalNumber(value, key);
-
-    if (number === null) {
-        throw new StormProviderError("OpenWeather field [" + key + "] was missing.");
-    }
-
-    return number;
-}
-
-function readRequiredString (value: Record<string, unknown>, key: string): string {
-    const candidate = value[key];
-
-    if (typeof candidate !== "string" || !candidate.trim()) {
-        throw new StormProviderError("OpenWeather field [" + key + "] was missing.");
-    }
-
-    return candidate;
-}
-
-function readOptionalNumber (value: Record<string, unknown>, key: string): number | null {
-    const candidate = value[key];
-
-    if (candidate === undefined || candidate === null) {
-        return null;
-    }
-
-    if (typeof candidate === "number" && Number.isFinite(candidate)) {
-        return candidate;
-    }
-
-    throw new StormProviderError("OpenWeather field [" + key + "] was invalid.");
-}
-
-function isRecord (value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -6,6 +6,7 @@ const OPENWEATHER_TILE_URL = "https://tile.openweathermap.org/map";
 const PROVIDER_LAYERS: Record<MapLayer, string> = {
     windSpeed: "wind_new",
     temperature: "temp_new",
+    pressure: "pressure_new",
     precipitation: "precipitation_new",
 };
 

@@ -141,6 +141,8 @@ class NhcStormRepository implements StormRepository {
             datetime: storm.lastUpdate,
             windSpeed: storm.intensity,
             category: getStormCategoryFromWindSpeed(storm.intensity),
+            // NHC's active-storm feed carries no watch/warning level.
+            alertLevel: null,
         };
     }
 

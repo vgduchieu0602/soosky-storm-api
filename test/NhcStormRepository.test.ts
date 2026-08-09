@@ -41,6 +41,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
             datetime: "2026-07-31T21:00:00.000Z",
             windSpeed: 50,
             category: "tropical_storm",
+            alertLevel: null,
         },
     ]);
 

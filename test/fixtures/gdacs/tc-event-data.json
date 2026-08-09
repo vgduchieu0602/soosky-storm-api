@@ -1,0 +1,31 @@
+{
+    "type": "Feature",
+    "bbox": [124.8, 27.0, 124.8, 27.0],
+    "geometry": { "type": "Point", "coordinates": [124.8, 27.0] },
+    "properties": {
+        "eventtype": "TC",
+        "eventid": 1001297,
+        "episodeid": 51,
+        "eventname": "DOLPHIN-26",
+        "name": "Tropical Cyclone DOLPHIN-26",
+        "alertlevel": "Orange",
+        "istemporary": "false",
+        "iscurrent": "true",
+        "country": "Marshall Islands, Japan, China",
+        "fromdate": "2026-07-27T00:00:00",
+        "todate": "2026-08-08T12:00:00",
+        "datemodified": "2026-08-08T16:50:16",
+        "iso3": "MHL",
+        "source": "JTWC",
+        "Class": "Point_Centroid",
+        "severitydata": {
+            "severity": 268.5168,
+            "severitytext": "Hurricane/Typhoon > 74 mph (maximum wind speed of 269 km/h)",
+            "severityunit": "km/h"
+        },
+        "episodes": [
+            { "details": "https://example.test/gdacs/getepisodedata?eventtype=TC&eventid=1001297&episodeid=1" },
+            { "details": "https://example.test/gdacs/getepisodedata?eventtype=TC&eventid=1001297&episodeid=51" }
+        ]
+    }
+}

@@ -1,10 +1,7 @@
-import StormSummary from "../entities/StormSummary.js";
-import StormTrack from "../entities/StormTrack.js";
+import ActiveStormsRepository from "./IActiveStormsRepository.js";
 import StormConeRepository from "./IStormConeRepository.js";
+import StormTrackRepository from "./IStormTrackRepository.js";
 
 export { StormRepository as default };
 
-interface StormRepository extends StormConeRepository {
-    getActiveStorms (): Promise<StormSummary[]>;
-    getStormTrack (stormId: string): Promise<StormTrack>;
-}
+interface StormRepository extends ActiveStormsRepository, StormTrackRepository, StormConeRepository {}

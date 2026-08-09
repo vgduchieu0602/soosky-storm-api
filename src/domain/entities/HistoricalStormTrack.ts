@@ -1,4 +1,4 @@
-import { StormCategory } from "./StormSummary.js";
+import { StormCategory, StormSource } from "./StormSummary.js";
 
 export { HistoricalStormTrack as default };
 export type { HistoricalStormTrackPoint };
@@ -14,8 +14,8 @@ interface HistoricalStormTrackPoint {
 interface HistoricalStormTrack {
     stormId: string;
     name: string;
-    source: "nhc";
-    trackKind: "best_track" | null;
+    source: StormSource;
+    trackKind: "best_track" | "gdacs_observed_track" | null;
     cachedUntil: string | null;
     availability: "available" | "not_available";
     history: HistoricalStormTrackPoint[];

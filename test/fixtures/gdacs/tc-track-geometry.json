@@ -1,0 +1,94 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "bbox": [124.77, 26.97, 124.83, 27.03],
+            "geometry": { "type": "Polygon", "coordinates": [[[124.77, 27.0], [124.8, 27.03], [124.83, 27.0], [124.8, 26.97], [124.77, 27.0]]] },
+            "properties": {
+                "eventtype": "TC",
+                "eventid": 1001297,
+                "episodeid": 51,
+                "eventname": "DOLPHIN-26",
+                "featuretype": "PointRadii",
+                "key": "08081200",
+                "polygondate": "2026-08-08T12:00:00",
+                "polygonlabel": "08/08 12:00 UTC",
+                "Class": "Point_Polygon_Point_50"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [121.37, 27.87, 121.43, 27.93],
+            "geometry": { "type": "Polygon", "coordinates": [[[121.37, 27.9], [121.4, 27.93], [121.43, 27.9], [121.4, 27.87], [121.37, 27.9]]] },
+            "properties": {
+                "featuretype": "PointRadii",
+                "key": "08091200",
+                "polygonlabel": "09/08 12:00 UTC",
+                "Class": "Point_Polygon_Point_52"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [123.47, 27.27, 123.53, 27.33],
+            "geometry": { "type": "Polygon", "coordinates": [[[123.47, 27.3], [123.5, 27.33], [123.53, 27.3], [123.5, 27.27], [123.47, 27.3]]] },
+            "properties": {
+                "featuretype": "PointRadii",
+                "key": "08090000",
+                "polygonlabel": "09/08 00:00 UTC",
+                "Class": "Point_Polygon_Point_51"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [125.97, 26.97, 126.03, 27.03],
+            "geometry": { "type": "Polygon", "coordinates": [[[125.97, 27.0], [126.0, 27.03], [126.03, 27.0], [126.0, 26.97], [125.97, 27.0]]] },
+            "properties": {
+                "featuretype": "PointRadii",
+                "key": "08080000",
+                "polygonlabel": "08/08 00:00 UTC",
+                "Class": "Point_Polygon_Point_48"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [125.17, 26.87, 125.23, 26.93],
+            "geometry": { "type": "Polygon", "coordinates": [[[125.17, 26.9], [125.2, 26.93], [125.23, 26.9], [125.2, 26.87], [125.17, 26.9]]] },
+            "properties": {
+                "featuretype": "PointRadii",
+                "key": "08080600",
+                "polygonlabel": "08/08 06:00 UTC",
+                "Class": "Point_Polygon_Point_49"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [125.17, 26.87, 125.23, 26.93],
+            "geometry": { "type": "Polygon", "coordinates": [[[125.17, 26.9], [125.2, 26.93], [125.23, 26.9], [125.2, 26.87], [125.17, 26.9]]] },
+            "properties": {
+                "featuretype": "PointRadii",
+                "key": "08080600",
+                "polygonlabel": "08/08 06:00 UTC",
+                "Class": "Point_Polygon_Point_49_duplicate"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [124.8, 27.0, 124.8, 27.0],
+            "geometry": { "type": "Point", "coordinates": [124.8, 27.0] },
+            "properties": {
+                "polygonlabel": "Centroid",
+                "Class": "Point_Centroid"
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [118.0, 25.0, 128.0, 33.0],
+            "geometry": { "type": "Polygon", "coordinates": [[[118.0, 25.0], [128.0, 25.0], [128.0, 33.0], [118.0, 33.0], [118.0, 25.0]]] },
+            "properties": {
+                "polygonlabel": "Cones",
+                "Class": "Poly_Cones"
+            }
+        }
+    ]
+}

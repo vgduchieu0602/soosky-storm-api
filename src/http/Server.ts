@@ -7,9 +7,21 @@ import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.j
 import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
 import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWeatherUseCase.js";
-import { MAP_LAYERS, MapLayer } from "../domain/entities/MapTile.js";
+import { ForecastUnits } from "../domain/entities/ForecastWeather.js";
+import { MAP_LAYERS, MAX_MAP_ZOOM, MIN_MAP_ZOOM, MapLayer } from "../domain/entities/MapTile.js";
+import { StormSource } from "../domain/entities/StormSummary.js";
+import GetCurrentWeatherUseCase from "../domain/use-cases/weather/GetCurrentWeatherUseCase.js";
 import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
+import SendPushNotificationUseCase from "../domain/use-cases/notification/SendPushNotificationUseCase.js";
+import PushNotificationError from "../domain/errors/PushNotificationError.js";
+import StorageUnavailableError from "../domain/errors/StorageUnavailableError.js";
+import { isDeviceToken } from "../domain/entities/Device.js";
+import { MAX_REGION_RADIUS_KM, MIN_REGION_RADIUS_KM } from "../domain/entities/RegionSubscription.js";
+import RegisterDeviceUseCase from "../domain/use-cases/device/RegisterDeviceUseCase.js";
+import SubscribeToStormUseCase from "../domain/use-cases/subscription/SubscribeToStormUseCase.js";
+import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
+import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import ClientError from "./ClientError.js";
 import formatResponseData from "./formatResponseData.js";
@@ -22,6 +34,7 @@ interface ServerConfig {
     readonly http: {
         readonly host: string;
         readonly port: number;
+        readonly trustProxy?: boolean | number | string;
     };
 }
 
@@ -35,6 +48,7 @@ interface ServerUseCases {
     };
     weather: {
         getForecastWeather: GetForecastWeatherUseCase;
+        getCurrentWeather: GetCurrentWeatherUseCase;
     };
     map: {
         getMapTile: GetMapTileUseCase;
@@ -42,9 +56,49 @@ interface ServerUseCases {
     radar: {
         getRadar: GetRadarUseCase;
     };
+    notification: {
+        sendPushNotification: SendPushNotificationUseCase;
+    };
+    device: {
+        registerDevice: RegisterDeviceUseCase;
+    };
+    subscription: {
+        subscribeToStorm: SubscribeToStormUseCase;
+        unsubscribeFromStorm: UnsubscribeFromStormUseCase;
+        saveRegionSubscription: SaveRegionSubscriptionUseCase;
+    };
 }
 
-type Route = readonly ["get", string, RequestHandler];
+type Route = readonly ["get" | "post" | "put", string, RequestHandler];
+
+type StormRegion = "all" | "us-nhc" | "gdacs";
+
+const NHC_STORM_ID_PATTERN = /^nhc:[A-Z]{2}\d{6}$/;
+const NHC_SUPPORTED_STORM_ID_PATTERN = /^nhc:(AL|EP|CP)\d{6}$/;
+const GDACS_STORM_ID_PATTERN = /^gdacs:TC:[1-9]\d*:[1-9]\d*$/;
+/** Push failures are reported without any APNs reason, key, or token detail. */
+const PUSH_ERROR_RESPONSES = {
+    invalid_device_token: {
+        status: 400,
+        code: "INVALID_DEVICE_TOKEN",
+        reason: "The device token was rejected",
+    },
+    not_configured: {
+        status: 503,
+        code: "PUSH_NOT_CONFIGURED",
+        reason: "Push notifications are not configured",
+    },
+    provider_unavailable: {
+        status: 502,
+        code: "PUSH_UNAVAILABLE",
+        reason: "Push notifications are temporarily unavailable",
+    },
+} as const;
+
+const REGION_SOURCES: Readonly<Record<"us-nhc" | "gdacs", StormSource>> = {
+    "us-nhc": "nhc",
+    gdacs: "gdacs",
+};
 
 class Server {
     private readonly _server = express();
@@ -54,18 +108,25 @@ class Server {
         ["get", "/health", this._GET_health],
         ["get", "/v1/storms", this._GET_storms],
         ["get", "/v1/weather/forecast", this._GET_forecastWeather],
+        ["get", "/v1/weather/current", this._GET_currentWeather],
         ["get", "/v1/map-tiles/:layer/:z/:x/:y", this._GET_mapTile],
         ["get", "/v1/radar", this._GET_radar],
         ["get", "/v1/storms/:stormId/track", this._GET_stormTrack],
         ["get", "/v1/storms/:stormId/cone", this._GET_stormCone],
         ["get", "/v1/storms/:stormId/spaghetti", this._GET_stormSpaghetti],
         ["get", "/v1/storms/:stormId/history-track", this._GET_historicalStormTrack],
+        ["post", "/v1/notifications/send", this._POST_sendNotification],
+        ["post", "/v1/devices", this._POST_registerDevice],
+        ["post", "/v1/storm-subscriptions", this._POST_subscribeToStorm],
+        ["post", "/v1/storm-subscriptions/unsubscribe", this._POST_unsubscribeFromStorm],
+        ["put", "/v1/region-subscriptions", this._PUT_regionSubscription],
     ];
 
     public constructor (
         private readonly _config: ServerConfig,
         private readonly _rateLimiter: RateLimiter,
         private readonly _useCases: ServerUseCases,
+        private readonly _getDatabaseStatus: () => string = () => "unknown",
     ) {
         this._registerRouter();
         this._registerErrorHandler();
@@ -108,7 +169,7 @@ class Server {
     }
 
     private _registerRouter (): void {
-        this._server.set("trust proxy", 1);
+        this._server.set("trust proxy", this._config.http.trustProxy ?? 1);
         this._server.use(express.json({ limit: "64kb" }));
         this._server.use((request: Request, response: Response, next: NextFunction) => {
             const scope = this._rateLimiter.check(request.ip ?? "unknown");
@@ -156,6 +217,29 @@ class Server {
                         reason: "Storm data is temporarily unavailable",
                     });
                     return;
+                case isRequestBodyError(error):
+                    response.status(error.status === 413 ? 413 : 400).json({
+                        ok: false,
+                        code: error.status === 413 ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST",
+                        reason: error.status === 413
+                            ? "Request body is too large."
+                            : "Request body must be valid JSON.",
+                    });
+                    return;
+                case error instanceof StorageUnavailableError:
+                    response.status(503).json({
+                        ok: false,
+                        code: "STORAGE_UNAVAILABLE",
+                        reason: "Storage is temporarily unavailable",
+                    });
+                    return;
+                case error instanceof PushNotificationError:
+                    response.status(PUSH_ERROR_RESPONSES[error.kind].status).json({
+                        ok: false,
+                        code: PUSH_ERROR_RESPONSES[error.kind].code,
+                        reason: PUSH_ERROR_RESPONSES[error.kind].reason,
+                    });
+                    return;
                 case error instanceof ClientError:
                     response.status(error.statusCode).json({
                         ok: false,
@@ -179,31 +263,87 @@ class Server {
             ok: true,
             data: formatResponseData({
                 service: "soosky-storm-api",
-                database: "connected",
+                database: this._getDatabaseStatus(),
             }),
         });
     }
 
     private async _GET_storms (request: Request, response: Response): Promise<void> {
-        if (request.query.region !== "us-nhc") {
-            throw new ClientError("Query param 'region' must be 'us-nhc'.");
+        const region = request.query.region === undefined ? "all" : request.query.region;
+
+        if (!isStormRegion(region)) {
+            throw new ClientError("Query param 'region' must be 'us-nhc', 'gdacs', or 'all'.");
         }
 
-        const data = await this._useCases.storm.getActiveStorms.execute();
+        const data = await this._useCases.storm.getActiveStorms.execute(
+            region === "all" ? {} : { source: REGION_SOURCES[region] },
+        );
 
         response.json({ ok: true, data });
     }
 
     private async _GET_forecastWeather (request: Request, response: Response): Promise<void> {
-        const lat = parseCoordinate(request.query.lat, "lat", -90, 90);
-        const lon = parseCoordinate(request.query.lon, "lon", -180, 180);
-        const units = request.query.units === undefined ? "metric" : request.query.units;
-
-        if (!isForecastUnits(units)) {
-            throw new ClientError("Query param 'units' must be 'standard', 'metric', or 'imperial'.");
-        }
-
+        const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getForecastWeather.execute({ lat, lon, units });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _GET_currentWeather (request: Request, response: Response): Promise<void> {
+        const { lat, lon, units } = parseWeatherQuery(request);
+        const data = await this._useCases.weather.getCurrentWeather.execute({ lat, lon, units });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _POST_sendNotification (request: Request, response: Response): Promise<void> {
+        const payload = readJsonObject(request);
+        const data = await this._useCases.notification.sendPushNotification.execute({
+            deviceToken: readRequiredField(payload, "deviceToken", 200),
+            title: readRequiredField(payload, "title", 256),
+            description: readRequiredField(payload, "description", 2048),
+        });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _POST_registerDevice (request: Request, response: Response): Promise<void> {
+        const body = readJsonObject(request);
+        const data = await this._useCases.device.registerDevice.execute({
+            deviceToken: readDeviceToken(body),
+        });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _POST_subscribeToStorm (request: Request, response: Response): Promise<void> {
+        const body = readJsonObject(request);
+        const data = await this._useCases.subscription.subscribeToStorm.execute({
+            deviceToken: readDeviceToken(body),
+            stormId: readStormId(body),
+        });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _POST_unsubscribeFromStorm (request: Request, response: Response): Promise<void> {
+        const body = readJsonObject(request);
+        const data = await this._useCases.subscription.unsubscribeFromStorm.execute({
+            deviceToken: readDeviceToken(body),
+            stormId: readStormId(body),
+        });
+
+        response.json({ ok: true, data });
+    }
+
+    private async _PUT_regionSubscription (request: Request, response: Response): Promise<void> {
+        const body = readJsonObject(request);
+        const data = await this._useCases.subscription.saveRegionSubscription.execute({
+            deviceToken: readDeviceToken(body),
+            lat: readCoordinateField(body, "lat", -90, 90),
+            lon: readCoordinateField(body, "lon", -180, 180),
+            radiusKm: readRadiusKm(body),
+        });
 
         response.json({ ok: true, data });
     }
@@ -218,7 +358,7 @@ class Server {
             throw new ClientError("Path param 'layer' is invalid.");
         }
 
-        if (z === null || x === null || y === null || z < 1 || z > 5) {
+        if (z === null || x === null || y === null || z < MIN_MAP_ZOOM || z > MAX_MAP_ZOOM) {
             throw new ClientError("Path params 'z', 'x', and 'y' are invalid.");
         }
 
@@ -243,7 +383,7 @@ class Server {
     private async _GET_stormTrack (request: Request, response: Response): Promise<void> {
         const stormId = request.params.stormId;
 
-        if (typeof stormId !== "string" || !/^nhc:[A-Z]{2}\d{6}$/.test(stormId)) {
+        if (typeof stormId !== "string" || !isTrackStormId(stormId)) {
             throw new ClientError("Path param 'stormId' is invalid.");
         }
 
@@ -279,7 +419,7 @@ class Server {
     private async _GET_historicalStormTrack (request: Request, response: Response): Promise<void> {
         const stormId = request.params.stormId;
 
-        if (typeof stormId !== "string" || !/^nhc:(AL|EP|CP)\d{6}$/.test(stormId)) {
+        if (typeof stormId !== "string" || !isHistoricalStormId(stormId)) {
             throw new ClientError("Path param 'stormId' is invalid.");
         }
 
@@ -290,7 +430,118 @@ class Server {
 }
 
 function isConeStormId (stormId: string): boolean {
-    return /^nhc:[A-Z]{2}\d{6}$/.test(stormId) || /^gdacs:TC:[1-9]\d*:[1-9]\d*$/.test(stormId);
+    return NHC_STORM_ID_PATTERN.test(stormId) || GDACS_STORM_ID_PATTERN.test(stormId);
+}
+
+function isTrackStormId (stormId: string): boolean {
+    return NHC_STORM_ID_PATTERN.test(stormId) || GDACS_STORM_ID_PATTERN.test(stormId);
+}
+
+function isHistoricalStormId (stormId: string): boolean {
+    return NHC_SUPPORTED_STORM_ID_PATTERN.test(stormId) || GDACS_STORM_ID_PATTERN.test(stormId);
+}
+
+function isStormRegion (value: unknown): value is StormRegion {
+    return value === "all" || value === "us-nhc" || value === "gdacs";
+}
+
+/** body-parser rejects unparseable or oversized bodies; those are client errors, not faults. */
+function isRequestBodyError (error: unknown): error is { status: number } {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+
+    const candidate = error as unknown as { type?: unknown; status?: unknown };
+
+    return typeof candidate.type === "string"
+        && candidate.type.startsWith("entity.")
+        && typeof candidate.status === "number";
+}
+
+function readJsonObject (request: Request): Record<string, unknown> {
+    const body: unknown = request.body;
+
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+        throw new ClientError("Request body must be a JSON object.");
+    }
+
+    return body as Record<string, unknown>;
+}
+
+function readDeviceToken (body: Record<string, unknown>): string {
+    const deviceToken = body.deviceToken;
+
+    if (!isDeviceToken(deviceToken)) {
+        throw new ClientError("Field 'deviceToken' must be a valid APNs device token.");
+    }
+
+    return deviceToken;
+}
+
+function readStormId (body: Record<string, unknown>): string {
+    const stormId = body.stormId;
+
+    if (typeof stormId !== "string" || !isTrackStormId(stormId)) {
+        throw new ClientError("Field 'stormId' is invalid.");
+    }
+
+    return stormId;
+}
+
+function readCoordinateField (body: Record<string, unknown>, name: string, min: number, max: number): number {
+    const value = body[name];
+
+    if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
+        throw new ClientError("Field '" + name + "' must be a number between " + min + " and " + max + ".");
+    }
+
+    return value;
+}
+
+function readRadiusKm (body: Record<string, unknown>): number {
+    const radiusKm = body.radiusKm;
+
+    if (
+        typeof radiusKm !== "number"
+        || !Number.isFinite(radiusKm)
+        || radiusKm < MIN_REGION_RADIUS_KM
+        || radiusKm > MAX_REGION_RADIUS_KM
+    ) {
+        throw new ClientError(
+            "Field 'radiusKm' must be a number between "
+            + MIN_REGION_RADIUS_KM + " and " + MAX_REGION_RADIUS_KM + ".",
+        );
+    }
+
+    return radiusKm;
+}
+
+function readRequiredField (body: Record<string, unknown>, name: string, maxLength: number): string {
+    const value = body[name];
+
+    if (typeof value !== "string" || !value.trim()) {
+        throw new ClientError("Field '" + name + "' is required.");
+    }
+
+    const trimmed = value.trim();
+
+    if (trimmed.length > maxLength) {
+        throw new ClientError("Field '" + name + "' must be at most " + maxLength + " characters.");
+    }
+
+    return trimmed;
+}
+
+function parseWeatherQuery (request: Request): { lat: number; lon: number; units: ForecastUnits } {
+    const lat = parseCoordinate(request.query.lat, "lat", -90, 90);
+    const lon = parseCoordinate(request.query.lon, "lon", -180, 180);
+    const units = request.query.units === undefined ? "metric" : request.query.units;
+
+    if (!isForecastUnits(units)) {
+        throw new ClientError("Query param 'units' must be 'standard', 'metric', or 'imperial'.");
+    }
+
+    return { lat, lon, units };
 }
 
 function parseCoordinate (value: unknown, name: string, min: number, max: number): number {
@@ -307,7 +558,7 @@ function parseCoordinate (value: unknown, name: string, min: number, max: number
     return coordinate;
 }
 
-function isForecastUnits (value: unknown): value is "standard" | "metric" | "imperial" {
+function isForecastUnits (value: unknown): value is ForecastUnits {
     return value === "standard" || value === "metric" || value === "imperial";
 }
 

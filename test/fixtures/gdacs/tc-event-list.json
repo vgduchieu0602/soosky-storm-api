@@ -1,0 +1,86 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "bbox": [124.8, 27.0, 124.8, 27.0],
+            "geometry": { "type": "Point", "coordinates": [124.8, 27.0] },
+            "properties": {
+                "eventtype": "TC",
+                "eventid": 1001297,
+                "episodeid": 51,
+                "eventname": "DOLPHIN-26",
+                "name": "Tropical Cyclone DOLPHIN-26",
+                "alertlevel": "Orange",
+                "istemporary": "false",
+                "iscurrent": "true",
+                "country": "Marshall Islands, Japan, China",
+                "fromdate": "2026-07-27T00:00:00",
+                "todate": "2026-08-08T12:00:00",
+                "datemodified": "2026-08-08T16:50:16",
+                "iso3": "MHL",
+                "source": "JTWC",
+                "Class": "Point_Centroid",
+                "severitydata": {
+                    "severity": 268.5168,
+                    "severitytext": "Hurricane/Typhoon > 74 mph (maximum wind speed of 269 km/h)",
+                    "severityunit": "km/h"
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [114.5, 22.9, 114.5, 22.9],
+            "geometry": { "type": "Point", "coordinates": [114.5, 22.9] },
+            "properties": {
+                "eventtype": "TC",
+                "eventid": 1001294,
+                "episodeid": 13,
+                "eventname": "NOUL-26",
+                "name": "Tropical Cyclone NOUL-26",
+                "alertlevel": "Orange",
+                "istemporary": "false",
+                "iscurrent": "false",
+                "country": "China, Philippines",
+                "fromdate": "2026-07-23T06:00:00",
+                "todate": "2026-07-26T00:00:00",
+                "datemodified": "2026-07-27T00:37:14",
+                "iso3": "CHN",
+                "source": "JTWC",
+                "Class": "Point_Centroid",
+                "severitydata": {
+                    "severity": 157.4064,
+                    "severitytext": "Tropical Storm (maximum wind speed of 157 km/h)",
+                    "severityunit": "km/h"
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "bbox": [41.6, -35.63, 41.6, -35.63],
+            "geometry": { "type": "Point", "coordinates": [41.6, -35.63] },
+            "properties": {
+                "eventtype": "TC",
+                "eventid": 1001256,
+                "episodeid": 47,
+                "eventname": "GEZANI-26",
+                "name": "Tropical Cyclone GEZANI-26",
+                "alertlevel": "Green",
+                "istemporary": "false",
+                "iscurrent": "true",
+                "country": "Mozambique",
+                "fromdate": "2026-02-06T00:00:00",
+                "todate": "2026-02-18T12:00:00",
+                "datemodified": "2026-07-28T16:45:25",
+                "iso3": "MOZ",
+                "source": "RSMC",
+                "Class": "Point_Centroid",
+                "severitydata": {
+                    "severity": 211.10976,
+                    "severitytext": "Hurricane/Typhoon > 74 mph (maximum wind speed of 211 km/h)",
+                    "severityunit": "km/h"
+                }
+            }
+        }
+    ]
+}

@@ -1,4 +1,4 @@
-import StormSummary, { StormCategory } from "./StormSummary.js";
+import StormSummary, { StormCategory, StormSource } from "./StormSummary.js";
 
 export { StormTrack as default };
 export type { StormTrackPoint };
@@ -15,7 +15,7 @@ interface StormTrackPoint {
 interface StormTrack {
     stormId: StormSummary["stormId"];
     name: StormSummary["name"];
-    source: "nhc";
+    source: StormSource;
     issuedAt: string;
     cachedUntil: string | null;
     observed: StormTrackPoint[];

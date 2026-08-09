@@ -1,6 +1,8 @@
 import StormCone, { GeoJsonFeatureCollection } from "../../domain/entities/StormCone.js";
+import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 import StormConeRepository from "../../domain/repositories/IStormConeRepository.js";
+import parseGdacsStormId from "./parseGdacsStormId.js";
 
 export { GdacsStormConeRepository as default };
 
@@ -11,8 +13,16 @@ class GdacsStormConeRepository implements StormConeRepository {
     ) {}
 
     public async getStormCone (stormId: string): Promise<StormCone> {
-        const { eventId, episodeId } = parseGdacsStormId(stormId);
-        const response = await this._fetch(buildGeometryUrl(this._geometryUrl, eventId, episodeId));
+        const identifiers = parseGdacsStormId(stormId);
+
+        if (!identifiers) {
+            throw new StormNotFoundError(stormId);
+        }
+
+        const response = await this._fetch(
+            buildGeometryUrl(this._geometryUrl, identifiers.eventId, identifiers.episodeId),
+            stormId,
+        );
         let payload: unknown;
 
         try {
@@ -53,7 +63,7 @@ class GdacsStormConeRepository implements StormConeRepository {
         };
     }
 
-    private async _fetch (url: string): Promise<Response> {
+    private async _fetch (url: string, stormId: string): Promise<Response> {
         try {
             const response = await this._fetcher(url, {
                 headers: {
@@ -63,32 +73,23 @@ class GdacsStormConeRepository implements StormConeRepository {
                 signal: AbortSignal.timeout(10_000),
             });
 
+            if (response.status === 404) {
+                throw new StormNotFoundError(stormId);
+            }
+
             if (!response.ok) {
                 throw new StormProviderError("GDACS request failed with HTTP " + response.status + ".");
             }
 
             return response;
         } catch (error) {
-            if (error instanceof StormProviderError) {
+            if (error instanceof StormProviderError || error instanceof StormNotFoundError) {
                 throw error;
             }
 
             throw new StormProviderError("GDACS request could not be completed.", { cause: error });
         }
     }
-}
-
-function parseGdacsStormId (stormId: string): { eventId: string; episodeId: string } {
-    const match = /^gdacs:TC:([1-9]\d*):([1-9]\d*)$/.exec(stormId);
-
-    if (!match || !match[1] || !match[2]) {
-        throw new StormProviderError("GDACS storm ID was invalid.");
-    }
-
-    return {
-        eventId: match[1],
-        episodeId: match[2],
-    };
 }
 
 function buildGeometryUrl (geometryUrl: string, eventId: string, episodeId: string): string {
