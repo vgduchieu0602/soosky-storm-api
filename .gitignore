@@ -10,3 +10,7 @@ docs
 credentials/apns/*.p8
 
 .superpowers
+
+# APNs private keys (moi vi tri)
+secrets/
+*.p8
