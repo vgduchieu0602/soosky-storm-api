@@ -125,22 +125,52 @@ docker compose ps        # STATUS phải là healthy sau ~20s
 
 ## 5. nginx + HTTPS
 
+Domain: **project2.vuonghieu.site**
+
+Trước tiên trỏ DNS: tạo record **A** cho `project2.vuonghieu.site` → IP của VPS. Kiểm tra đã trỏ đúng:
+
 ```bash
+dig +short project2.vuonghieu.site      # phải ra IP VPS
+```
+
+File `deploy/nginx/storm-api.conf` đã điền sẵn domain này, chỉ cần copy:
+
+```bash
+cd ~/soosky-storm-api
 sudo cp deploy/nginx/storm-api.conf /etc/nginx/sites-available/storm-api
-sudo nano /etc/nginx/sites-available/storm-api      # đổi server_name thành domain thật
 sudo ln -s /etc/nginx/sites-available/storm-api /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d storm.your-domain.com
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Test HTTP trước khi lấy chứng chỉ:
+
+```bash
+curl -I http://project2.vuonghieu.site/health      # phải ra 200
+```
+
+Lấy HTTPS:
+
+```bash
+sudo certbot --nginx -d project2.vuonghieu.site
+```
+
+certbot tự thêm block `listen 443` + chứng chỉ vào file, và tự gia hạn. Xong:
+
+```bash
+curl -s https://project2.vuonghieu.site/health
 ```
 
 Giữ `HTTP_TRUST_PROXY=1` trong `.env` vì có nginx phía trước.
+
+Domain khác nhau thì nginx tự route theo `server_name`, không đụng các project khác đang chạy trên cùng VPS.
 
 ---
 
 ## 6. Kiểm tra
 
 ```bash
-BASE=https://storm.your-domain.com
+BASE=https://project2.vuonghieu.site
 
 curl -s $BASE/health
 curl -s "$BASE/v1/storms"
