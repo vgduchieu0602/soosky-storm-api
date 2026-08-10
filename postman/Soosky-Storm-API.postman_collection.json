@@ -1,0 +1,1289 @@
+{
+  "info": {
+    "name": "Soosky Storm API",
+    "description": "API bão + thời tiết + push notification.\n\nĐổi biến `baseUrl` cho môi trường cần test:\n  - Production: https://project3.vuonghieu.site\n  - Trên VPS:   http://127.0.0.1:3001\n  - Local dev:  http://127.0.0.1:3001\n\nChạy 'Storms > List active storms' TRƯỚC — nó tự lưu stormId thật vào biến\ncollection, các request storm phía sau dùng luôn không cần copy tay.\n\nEnvelope: thành công { ok: true, data }, lỗi { ok: false, code, reason }.\nNgoại lệ: /v1/map-tiles/... trả ảnh PNG.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://project3.vuonghieu.site"
+    },
+    {
+      "key": "stormId",
+      "value": "nhc:EP072026"
+    },
+    {
+      "key": "deviceToken",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "key": "lat",
+      "value": "10.8231"
+    },
+    {
+      "key": "lon",
+      "value": "106.6297"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('service name', () => pm.expect(d.service).to.eql('soosky-storm-api'));",
+                  "pm.test('database connected', () => pm.expect(d.database).to.eql('connected'));",
+                  "// database = disconnected -> sai MONGO_URI hoac IP VPS chua whitelist tren Atlas"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Kiểm tra app sống và trạng thái MongoDB thật (connected / connecting / disconnecting / disconnected)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storms",
+      "item": [
+        {
+          "name": "List active storms (all providers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const list = pm.response.json().data;",
+                  "pm.test('data la array', () => pm.expect(list).to.be.an('array'));",
+                  "if (list.length) {",
+                  "    pm.collectionVariables.set('stormId', list[0].stormId);",
+                  "    console.log('Da luu stormId =', list[0].stormId);",
+                  "} else {",
+                  "    console.log('Khong co bao active - cac request storm se tra 404, day la binh thuong');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms"
+              ]
+            },
+            "description": "NHC + GDACS. Mảng rỗng là hợp lệ khi không có bão. Tự lưu stormId đầu tiên vào biến collection."
+          },
+          "response": []
+        },
+        {
+          "name": "List active storms (NHC only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms?region=us-nhc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms"
+              ],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "us-nhc"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List active storms (GDACS only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms?region=gdacs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms"
+              ],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "gdacs"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Storm track",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.test('co observed va forecast', () => {",
+                  "        pm.expect(d.observed).to.be.an('array');",
+                  "        pm.expect(d.forecast).to.be.an('array');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/track",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms",
+                "{{stormId}}",
+                "track"
+              ]
+            },
+            "description": "Đường đi đã quan sát + dự báo. Với GDACS thì windSpeed = null, category = unknown (provider không có cường độ theo từng thời điểm)."
+          },
+          "response": []
+        },
+        {
+          "name": "Storm history track",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available']).to.include(d.availability));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/history-track",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms",
+                "{{stormId}}",
+                "history-track"
+              ]
+            },
+            "description": "NHC chỉ basin AL/EP/CP, hoặc GDACS. availability = not_available vẫn trả 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Storm cone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available', 'not_supported']).to.include(d.availability));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/cone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms",
+                "{{stormId}}",
+                "cone"
+              ]
+            },
+            "description": "NHC forecast cone hoặc GDACS event area. not_supported (basin ngoài AL/EP/CP) vẫn trả 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Storm spaghetti",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms/nhc:EP072026/spaghetti",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms",
+                "nhc:EP072026",
+                "spaghetti"
+              ]
+            },
+            "description": "Chỉ NHC AL/EP/CP. Gọi bằng GDACS storm ID sẽ trả 400."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Weather",
+      "item": [
+        {
+          "name": "Current weather",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('co 9 field chinh', () => {",
+                  "    ['temperature','humidity','uvi','visibility','windSpeed','windDeg','rain1h','precipitationProbability','weatherDescription']",
+                  "        .forEach((k) => pm.expect(d).to.have.property(k));",
+                  "});",
+                  "// Field thieu la null, khong phai 0"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "weather",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{lat}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{lon}}"
+                }
+              ]
+            },
+            "description": "Quan trắc hiện tại. Cache 10 phút."
+          },
+          "response": []
+        },
+        {
+          "name": "Current weather (imperial)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "pm.test('don vi F', () => pm.expect(pm.response.json().data.units.temperature).to.eql('F'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}&units=imperial",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "weather",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{lat}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{lon}}"
+                },
+                {
+                  "key": "units",
+                  "value": "imperial"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forecast weather",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('co hourly va daily', () => {",
+                  "    pm.expect(d.hourly).to.be.an('array').that.is.not.empty;",
+                  "    pm.expect(d.daily).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "console.log('hourly:', d.hourly.length, 'diem | daily:', d.daily.length, 'diem');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/weather/forecast?lat={{lat}}&lon={{lon}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "weather",
+                "forecast"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{lat}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{lon}}"
+                }
+              ]
+            },
+            "description": "hourly ~48 điểm, daily 10 điểm. Cache 24 giờ."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Map & Radar",
+      "item": [
+        {
+          "name": "Map tile - windSpeed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('la anh PNG', () => pm.expect(pm.response.headers.get('content-type')).to.include('image/png'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/5/25/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "windSpeed",
+                "5",
+                "25",
+                "15"
+              ]
+            },
+            "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
+          },
+          "response": []
+        },
+        {
+          "name": "Map tile - temperature",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('la anh PNG', () => pm.expect(pm.response.headers.get('content-type')).to.include('image/png'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/temperature/5/25/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "temperature",
+                "5",
+                "25",
+                "15"
+              ]
+            },
+            "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
+          },
+          "response": []
+        },
+        {
+          "name": "Map tile - pressure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('la anh PNG', () => pm.expect(pm.response.headers.get('content-type')).to.include('image/png'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/pressure/5/25/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "pressure",
+                "5",
+                "25",
+                "15"
+              ]
+            },
+            "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
+          },
+          "response": []
+        },
+        {
+          "name": "Map tile - precipitation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('la anh PNG', () => pm.expect(pm.response.headers.get('content-type')).to.include('image/png'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/precipitation/5/25/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "precipitation",
+                "5",
+                "25",
+                "15"
+              ]
+            },
+            "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
+          },
+          "response": []
+        },
+        {
+          "name": "Radar manifest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('co tileTemplate', () => pm.expect(d.tileTemplate).to.be.a('string'));",
+                  "pm.test('past la array', () => pm.expect(d.past).to.be.an('array'));",
+                  "console.log('past:', d.past.length, 'frame | nowcast:', d.nowcast.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/radar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "radar"
+              ]
+            },
+            "description": "FE thay {path}/{z}/{x}/{y} vào tileTemplate để tải tile radar."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Devices & Subscriptions",
+      "item": [
+        {
+          "name": "Register device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('registered = true', () => pm.expect(d.registered).to.eql(true));",
+                  "pm.test('khong tra lai deviceToken', () => pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('deviceToken')));",
+                  "console.log('alreadyRegistered:', d.alreadyRegistered);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices"
+              ]
+            },
+            "description": "Idempotent. Gọi lần 2 trả alreadyRegistered = true, vẫn 200. Cần MongoDB, thiếu Mongo trả 503 STORAGE_UNAVAILABLE."
+          },
+          "response": []
+        },
+        {
+          "name": "Subscribe to storm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('subscribed = true', () => pm.expect(d.subscribed).to.eql(true));",
+                  "console.log('alreadySubscribed:', d.alreadySubscribed);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"stormId\": \"{{stormId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/storm-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storm-subscriptions"
+              ]
+            },
+            "description": "Theo dõi 1 cơn bão. Idempotent."
+          },
+          "response": []
+        },
+        {
+          "name": "Unsubscribe from storm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('subscribed = false', () => pm.expect(d.subscribed).to.eql(false));",
+                  "console.log('removed:', d.removed);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"stormId\": \"{{stormId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/storm-subscriptions/unsubscribe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storm-subscriptions",
+                "unsubscribe"
+              ]
+            },
+            "description": "removed = false nghĩa là vốn không theo dõi. Vẫn trả 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Save region subscription",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
+                  "pm.test('saved = true', () => pm.expect(pm.response.json().data.saved).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"lat\": 10.8231,\n  \"lon\": 106.6297,\n  \"radiusKm\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/region-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "region-subscriptions"
+              ]
+            },
+            "description": "Mỗi device 1 vùng, gọi lại là ghi đè. lat/lon/radiusKm phải là number, không nhận string. radiusKm từ 1 đến 2000."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Send push notification",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// deviceToken mac dinh la gia -> APNs tra 400 INVALID_DEVICE_TOKEN. Day la DUNG.",
+                  "// Doi bien deviceToken thanh token that tu app iOS de nhan push that.",
+                  "pm.test('status 200 / 400 / 503', () => pm.expect([200, 400, 503]).to.include(pm.response.code));",
+                  "const b = pm.response.json();",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('sent = true', () => pm.expect(b.data.sent).to.eql(true));",
+                  "} else {",
+                  "    console.log('code:', b.code, '-', b.reason);",
+                  "}",
+                  "pm.test('khong lo credentials', () => {",
+                  "    const t = pm.response.text();",
+                  "    ['BEGIN PRIVATE KEY', 'bearer ', 'InvalidProviderToken'].forEach((s) => pm.expect(t).to.not.include(s));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"title\": \"Storm Warning\",\n  \"description\": \"Hurricane Erin may affect your area.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/notifications/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "notifications",
+                "send"
+              ]
+            },
+            "description": "Gửi 1 push tới 1 device token.\n\ndeviceToken mặc định là giả nên APNs sẽ trả 400 INVALID_DEVICE_TOKEN — đúng như mong đợi.\nMuốn test thật: đổi biến deviceToken thành token lấy từ app iOS.\n503 PUSH_NOT_CONFIGURED = thiếu biến APNS_* hoặc sai đường dẫn .p8."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation errors",
+      "item": [
+        {
+          "name": "Storms - region sai (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms?region=khong-ton-tai",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms"
+              ],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "khong-ton-tai"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Weather - lat ngoai khoang (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/weather/current?lat=91&lon=106",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "weather",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "91"
+                },
+                {
+                  "key": "lon",
+                  "value": "106"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Weather - units sai (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/weather/current?lat=10&lon=106&units=kelvin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "weather",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "10"
+                },
+                {
+                  "key": "lon",
+                  "value": "106"
+                },
+                {
+                  "key": "units",
+                  "value": "kelvin"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Map tile - zoom ngoai 2..7 (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/1/0/0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "windSpeed",
+                "1",
+                "0",
+                "0"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Map tile - x ngoai luoi (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/2/4/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "map-tiles",
+                "windSpeed",
+                "2",
+                "4",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Storm track - stormId sai dinh dang (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/storms/khong-phai-bao/track",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storms",
+                "khong-phai-bao",
+                "track"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Route khong ton tai (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('code = NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/khong-ton-tai",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "khong-ton-tai"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Device - token sai dinh dang (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"khong-phai-hex\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Region - radiusKm qua lon (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"lat\": 10,\n  \"lon\": 106,\n  \"radiusKm\": 5000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/region-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "region-subscriptions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Region - lat la string (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
+                  "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceToken\": \"{{deviceToken}}\",\n  \"lat\": \"10\",\n  \"lon\": 106,\n  \"radiusKm\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/region-subscriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "region-subscriptions"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
