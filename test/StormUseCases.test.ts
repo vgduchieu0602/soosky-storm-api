@@ -6,6 +6,7 @@ import StormTrack from "../src/domain/entities/StormTrack.js";
 import StormNotFoundError from "../src/domain/errors/StormNotFoundError.js";
 import StormRepository from "../src/domain/repositories/IStormRepository.js";
 import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
 import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormTrackUseCase from "../src/domain/use-cases/storm/GetStormTrackUseCase.js";
 
@@ -25,6 +26,15 @@ test("Storms use case returns active storm summaries from the repository", async
     const useCase = new GetActiveStormsUseCase(repository);
 
     assert.deepEqual(await useCase.execute(), [summary]);
+});
+
+test("Demo storms use case generates between one and five clearly marked storms", async () => {
+    const minimum = await new GetDemoStormsUseCase(() => 0).execute();
+    const maximum = await new GetDemoStormsUseCase(() => 0.999).execute();
+
+    assert.equal(minimum.length, 1);
+    assert.equal(maximum.length, 5);
+    assert.equal(maximum.every((storm) => storm.isDemo), true);
 });
 
 test("Storms use case returns the requested track from the repository", async () => {

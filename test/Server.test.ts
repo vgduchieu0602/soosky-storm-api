@@ -602,54 +602,15 @@ test("GET /v1/storms returns active NHC storms", async () => {
     });
 });
 
-test("GET /v1/storms/demo returns a fixed list clearly marked as demo data", async () => {
+test("GET /v1/storms/demo returns one to five random demo storms", async () => {
     const response = await fetch(baseUrl + "/v1/storms/demo");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), {
-        ok: true,
-        data: [
-            {
-                stormId: "nhc:AL052025",
-                name: "ERIN",
-                source: "nhc",
-                basin: "AL",
-                lat: 18.8,
-                lon: -57.6,
-                datetime: "2025-08-15T12:00:00.000Z",
-                windSpeed: 90,
-                category: "category_2",
-                alertLevel: null,
-                isDemo: true,
-            },
-            {
-                stormId: "nhc:AL092025",
-                name: "IMELDA",
-                source: "nhc",
-                basin: "AL",
-                lat: 25.1,
-                lon: -71.2,
-                datetime: "2025-09-30T12:00:00.000Z",
-                windSpeed: 55,
-                category: "tropical_storm",
-                alertLevel: null,
-                isDemo: true,
-            },
-            {
-                stormId: "nhc:EP032025",
-                name: "ERICK",
-                source: "nhc",
-                basin: "EP",
-                lat: 14.2,
-                lon: -101.4,
-                datetime: "2025-06-19T18:00:00.000Z",
-                windSpeed: 110,
-                category: "category_3",
-                alertLevel: null,
-                isDemo: true,
-            },
-        ],
-    });
+    const payload = await response.json();
+
+    assert.equal(payload.ok, true);
+    assert.equal(payload.data.length >= 1 && payload.data.length <= 5, true);
+    assert.equal(payload.data.every((storm: { isDemo: boolean }) => storm.isDemo), true);
 });
 
 test("GET /v1/storms returns every provider's storms when no region is given", async () => {
