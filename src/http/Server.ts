@@ -3,6 +3,7 @@ import express, { NextFunction, Request, RequestHandler, Response } from "expres
 import StormNotFoundError from "../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../domain/errors/StormProviderError.js";
 import GetActiveStormsUseCase from "../domain/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../domain/use-cases/storm/GetDemoStormsUseCase.js";
 import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
@@ -41,6 +42,7 @@ interface ServerConfig {
 interface ServerUseCases {
     storm: {
         getActiveStorms: GetActiveStormsUseCase;
+        getDemoStorms: GetDemoStormsUseCase;
         getStormTrack: GetStormTrackUseCase;
         getStormCone: GetStormConeUseCase;
         getStormSpaghetti: GetStormSpaghettiUseCase;
@@ -107,6 +109,7 @@ class Server {
     private readonly _routes: Route[] = [
         ["get", "/health", this._GET_health],
         ["get", "/v1/storms", this._GET_storms],
+        ["get", "/v1/storms/demo", this._GET_demoStorms],
         ["get", "/v1/weather/forecast", this._GET_forecastWeather],
         ["get", "/v1/weather/current", this._GET_currentWeather],
         ["get", "/v1/map-tiles/:layer/:z/:x/:y", this._GET_mapTile],
@@ -278,6 +281,12 @@ class Server {
         const data = await this._useCases.storm.getActiveStorms.execute(
             region === "all" ? {} : { source: REGION_SOURCES[region] },
         );
+
+        response.json({ ok: true, data });
+    }
+
+    private async _GET_demoStorms (_request: Request, response: Response): Promise<void> {
+        const data = await this._useCases.storm.getDemoStorms.execute();
 
         response.json({ ok: true, data });
     }

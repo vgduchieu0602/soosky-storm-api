@@ -1,36 +1,49 @@
 {
   "info": {
+    "_postman_id": "a9784064-70f3-4235-8074-1129bb9a0765",
     "name": "Soosky Storm API",
-    "description": "API bão + thời tiết + push notification.\n\nĐổi biến `baseUrl` cho môi trường cần test:\n  - Production: https://project3.vuonghieu.site\n  - Trên VPS:   http://127.0.0.1:3001\n  - Local dev:  http://127.0.0.1:3001\n\nChạy 'Storms > List active storms' TRƯỚC — nó tự lưu stormId thật vào biến\ncollection, các request storm phía sau dùng luôn không cần copy tay.\n\nEnvelope: thành công { ok: true, data }, lỗi { ok: false, code, reason }.\nNgoại lệ: /v1/map-tiles/... trả ảnh PNG.",
+    "description": "API bão + thời tiết + push notification.\n\nĐỔI BIẾN baseUrl cho môi trường cần test:\n  https://project3.vuonghieu.site   (production, cần đã chạy certbot cho domain này)\n  http://project3.vuonghieu.site    (nếu chưa có HTTPS)\n  http://127.0.0.1:3001             (chạy trên VPS hoặc local)\n\nChạy 'Storms > List active storms' TRƯỚC — nó tự lưu stormId thật vào biến collection.\n\nEnvelope: thành công { ok, data }, lỗi { ok, code, reason }.\nNgoại lệ: /v1/map-tiles/... trả ảnh PNG.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "https://project3.vuonghieu.site"
+      "value": "http://project3.vuonghieu.site",
+      "type": "string"
     },
     {
       "key": "stormId",
-      "value": "nhc:EP072026"
+      "value": "nhc:EP072026",
+      "type": "string"
     },
     {
       "key": "deviceToken",
-      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "value": "ab1843f1436d2201e1294d887d3fb38cda2b753779cb3d41103bd4e01f6808ed",
+      "type": "string"
     },
     {
       "key": "lat",
-      "value": "10.8231"
+      "value": "10.8231",
+      "type": "string"
     },
     {
       "key": "lon",
-      "value": "106.6297"
+      "value": "106.6297",
+      "type": "string"
+    },
+    {
+      "key": "archivedStormId",
+      "value": "nhc:AL052025",
+      "type": "string"
     }
   ],
   "item": [
     {
+      "id": "2481f032-0fa6-493e-890d-8324027cea8f",
       "name": "Health",
       "item": [
         {
+          "id": "4ab704d6-7522-4f93-8d7d-88860d129280",
           "name": "Health check",
           "event": [
             {
@@ -39,35 +52,31 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('tra ve JSON, khong phai HTML', () => {",
+                  "    pm.expect(pm.response.headers.get('content-type') || '').to.include('json');",
+                  "});",
                   "const d = pm.response.json().data;",
-                  "pm.test('service name', () => pm.expect(d.service).to.eql('soosky-storm-api'));",
-                  "pm.test('database connected', () => pm.expect(d.database).to.eql('connected'));",
-                  "// database = disconnected -> sai MONGO_URI hoac IP VPS chua whitelist tren Atlas"
+                  "pm.test('dung service', () => pm.expect(d.service).to.eql('soosky-storm-api'));",
+                  "pm.test('database connected', () => pm.expect(d.database).to.eql('connected'));"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Kiểm tra app sống và trạng thái MongoDB thật (connected / connecting / disconnecting / disconnected)."
+            "url": "{{baseUrl}}/health",
+            "description": "Nếu trả về HTML thay vì JSON: nginx đang route sang project khác. Xem lại server_name/cert của domain đang gọi."
           },
           "response": []
         }
       ]
     },
     {
+      "id": "166a6dcb-9f1a-4400-8f0e-c7c705d7a001",
       "name": "Storms",
       "item": [
         {
+          "id": "90651d5b-a988-45cd-8d26-a02be580c2fa",
           "name": "List active storms (all providers)",
           "event": [
             {
@@ -83,7 +92,7 @@
                   "    pm.collectionVariables.set('stormId', list[0].stormId);",
                   "    console.log('Da luu stormId =', list[0].stormId);",
                   "} else {",
-                  "    console.log('Khong co bao active - cac request storm se tra 404, day la binh thuong');",
+                  "    console.log('Khong co bao active - request storm phia sau se tra 404, day la binh thuong');",
                   "}"
                 ]
               }
@@ -91,21 +100,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms"
-              ]
-            },
-            "description": "NHC + GDACS. Mảng rỗng là hợp lệ khi không có bão. Tự lưu stormId đầu tiên vào biến collection."
+            "url": "{{baseUrl}}/v1/storms",
+            "description": "Chạy request này TRƯỚC. Nó tự lưu stormId thật vào biến collection cho các request phía sau."
           },
           "response": []
         },
         {
+          "id": "c37de955-6ed0-48a5-8f1f-d7f829fe4376",
           "name": "List active storms (NHC only)",
           "event": [
             {
@@ -121,26 +122,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms?region=us-nhc",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms"
-              ],
-              "query": [
-                {
-                  "key": "region",
-                  "value": "us-nhc"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/storms?region=us-nhc"
           },
           "response": []
         },
         {
+          "id": "85d21316-9f66-43c2-8445-95b85b146f8d",
           "name": "List active storms (GDACS only)",
           "event": [
             {
@@ -156,26 +143,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms?region=gdacs",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms"
-              ],
-              "query": [
-                {
-                  "key": "region",
-                  "value": "gdacs"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/storms?region=gdacs"
           },
           "response": []
         },
         {
+          "id": "8c479f29-038d-46f1-8a55-ea6a5af194d9",
           "name": "Storm track",
           "event": [
             {
@@ -197,23 +170,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/track",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms",
-                "{{stormId}}",
-                "track"
-              ]
-            },
-            "description": "Đường đi đã quan sát + dự báo. Với GDACS thì windSpeed = null, category = unknown (provider không có cường độ theo từng thời điểm)."
+            "url": "{{baseUrl}}/v1/storms/{{stormId}}/track",
+            "description": "Với GDACS thì windSpeed = null, category = unknown vì provider không có cường độ theo từng thời điểm."
           },
           "response": []
         },
         {
+          "id": "d8840abe-7fec-417b-8ee7-587f5a2f8f5b",
           "name": "Storm history track",
           "event": [
             {
@@ -223,8 +186,8 @@
                 "exec": [
                   "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
                   "if (pm.response.code === 200) {",
-                  "    const d = pm.response.json().data;",
-                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available']).to.include(d.availability));",
+                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available'])",
+                  "        .to.include(pm.response.json().data.availability));",
                   "}"
                 ]
               }
@@ -232,23 +195,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/history-track",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms",
-                "{{stormId}}",
-                "history-track"
-              ]
-            },
-            "description": "NHC chỉ basin AL/EP/CP, hoặc GDACS. availability = not_available vẫn trả 200."
+            "url": "{{baseUrl}}/v1/storms/{{stormId}}/history-track"
           },
           "response": []
         },
         {
+          "id": "82fcb788-fe4a-44be-841e-b687f2e5ecb5",
           "name": "Storm cone",
           "event": [
             {
@@ -258,8 +210,8 @@
                 "exec": [
                   "pm.test('status 200 hoac 404', () => pm.expect([200, 404]).to.include(pm.response.code));",
                   "if (pm.response.code === 200) {",
-                  "    const d = pm.response.json().data;",
-                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available', 'not_supported']).to.include(d.availability));",
+                  "    pm.test('availability hop le', () => pm.expect(['available', 'not_available', 'not_supported'])",
+                  "        .to.include(pm.response.json().data.availability));",
                   "}"
                 ]
               }
@@ -267,23 +219,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms/{{stormId}}/cone",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms",
-                "{{stormId}}",
-                "cone"
-              ]
-            },
-            "description": "NHC forecast cone hoặc GDACS event area. not_supported (basin ngoài AL/EP/CP) vẫn trả 200."
+            "url": "{{baseUrl}}/v1/storms/{{stormId}}/cone"
           },
           "response": []
         },
         {
+          "id": "f6715aca-29eb-42d1-8cc1-c5a031abc37a",
           "name": "Storm spaghetti",
           "event": [
             {
@@ -298,18 +239,7 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms/nhc:EP072026/spaghetti",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms",
-                "nhc:EP072026",
-                "spaghetti"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/storms/nhc:EP072026/spaghetti",
             "description": "Chỉ NHC AL/EP/CP. Gọi bằng GDACS storm ID sẽ trả 400."
           },
           "response": []
@@ -317,9 +247,11 @@
       ]
     },
     {
+      "id": "069c3605-c13a-4229-8d2f-54cf6f38d147",
       "name": "Weather",
       "item": [
         {
+          "id": "c1b5565a-858d-4b3c-87b2-1f84318ca505",
           "name": "Current weather",
           "event": [
             {
@@ -333,40 +265,20 @@
                   "pm.test('co 9 field chinh', () => {",
                   "    ['temperature','humidity','uvi','visibility','windSpeed','windDeg','rain1h','precipitationProbability','weatherDescription']",
                   "        .forEach((k) => pm.expect(d).to.have.property(k));",
-                  "});",
-                  "// Field thieu la null, khong phai 0"
+                  "});"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "weather",
-                "current"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "{{lat}}"
-                },
-                {
-                  "key": "lon",
-                  "value": "{{lon}}"
-                }
-              ]
-            },
-            "description": "Quan trắc hiện tại. Cache 10 phút."
+            "url": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}",
+            "description": "Field nào provider không có thì là null, không phải 0."
           },
           "response": []
         },
         {
+          "id": "71036623-a600-43ab-887d-6ed4fd6da7e5",
           "name": "Current weather (imperial)",
           "event": [
             {
@@ -383,35 +295,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}&units=imperial",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "weather",
-                "current"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "{{lat}}"
-                },
-                {
-                  "key": "lon",
-                  "value": "{{lon}}"
-                },
-                {
-                  "key": "units",
-                  "value": "imperial"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/weather/current?lat={{lat}}&lon={{lon}}&units=imperial"
           },
           "response": []
         },
         {
+          "id": "1308fd07-3807-4aba-8e02-e48ae96709d9",
           "name": "Forecast weather",
           "event": [
             {
@@ -426,44 +315,25 @@
                   "    pm.expect(d.hourly).to.be.an('array').that.is.not.empty;",
                   "    pm.expect(d.daily).to.be.an('array').that.is.not.empty;",
                   "});",
-                  "console.log('hourly:', d.hourly.length, 'diem | daily:', d.daily.length, 'diem');"
+                  "console.log('hourly:', d.hourly.length, '| daily:', d.daily.length);"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/weather/forecast?lat={{lat}}&lon={{lon}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "weather",
-                "forecast"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "{{lat}}"
-                },
-                {
-                  "key": "lon",
-                  "value": "{{lon}}"
-                }
-              ]
-            },
-            "description": "hourly ~48 điểm, daily 10 điểm. Cache 24 giờ."
+            "url": "{{baseUrl}}/v1/weather/forecast?lat={{lat}}&lon={{lon}}"
           },
           "response": []
         }
       ]
     },
     {
+      "id": "569db446-0386-4b65-8025-d9b37f14d9de",
       "name": "Map & Radar",
       "item": [
         {
+          "id": "22909cfb-fba6-46b6-8e79-6310481a4170",
           "name": "Map tile - windSpeed",
           "event": [
             {
@@ -479,25 +349,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/5/25/15",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "windSpeed",
-                "5",
-                "25",
-                "15"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/map-tiles/windSpeed/5/25/15",
             "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
           },
           "response": []
         },
         {
+          "id": "aa96374e-81cd-4b10-8274-4c25cb2f0538",
           "name": "Map tile - temperature",
           "event": [
             {
@@ -513,25 +371,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/temperature/5/25/15",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "temperature",
-                "5",
-                "25",
-                "15"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/map-tiles/temperature/5/25/15",
             "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
           },
           "response": []
         },
         {
+          "id": "2b6f718a-aef5-4ffb-8596-ce710eeab925",
           "name": "Map tile - pressure",
           "event": [
             {
@@ -547,25 +393,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/pressure/5/25/15",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "pressure",
-                "5",
-                "25",
-                "15"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/map-tiles/pressure/5/25/15",
             "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
           },
           "response": []
         },
         {
+          "id": "80732fae-0b71-4504-8243-76fb97278898",
           "name": "Map tile - precipitation",
           "event": [
             {
@@ -581,25 +415,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/precipitation/5/25/15",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "precipitation",
-                "5",
-                "25",
-                "15"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/map-tiles/precipitation/5/25/15",
             "description": "Trả ảnh PNG, không phải JSON. z từ 2 đến 7, x/y từ 0 đến 2^z - 1."
           },
           "response": []
         },
         {
+          "id": "3eb41b21-1e52-4014-82b9-71c0e280e50f",
           "name": "Radar manifest",
           "event": [
             {
@@ -611,7 +433,6 @@
                   "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
                   "const d = pm.response.json().data;",
                   "pm.test('co tileTemplate', () => pm.expect(d.tileTemplate).to.be.a('string'));",
-                  "pm.test('past la array', () => pm.expect(d.past).to.be.an('array'));",
                   "console.log('past:', d.past.length, 'frame | nowcast:', d.nowcast.length);"
                 ]
               }
@@ -619,26 +440,18 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/radar",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "radar"
-              ]
-            },
-            "description": "FE thay {path}/{z}/{x}/{y} vào tileTemplate để tải tile radar."
+            "url": "{{baseUrl}}/v1/radar"
           },
           "response": []
         }
       ]
     },
     {
+      "id": "5adb76bc-62c3-46b6-879b-b586c27d1994",
       "name": "Devices & Subscriptions",
       "item": [
         {
+          "id": "71d57299-aec5-47e6-861a-b2b03f7fadd0",
           "name": "Register device",
           "event": [
             {
@@ -650,7 +463,8 @@
                   "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
                   "const d = pm.response.json().data;",
                   "pm.test('registered = true', () => pm.expect(d.registered).to.eql(true));",
-                  "pm.test('khong tra lai deviceToken', () => pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('deviceToken')));",
+                  "pm.test('khong tra lai deviceToken', () => pm.expect(pm.response.text())",
+                  "    .to.not.include(pm.collectionVariables.get('deviceToken')));",
                   "console.log('alreadyRegistered:', d.alreadyRegistered);"
                 ]
               }
@@ -673,21 +487,13 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/devices",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "devices"
-              ]
-            },
-            "description": "Idempotent. Gọi lần 2 trả alreadyRegistered = true, vẫn 200. Cần MongoDB, thiếu Mongo trả 503 STORAGE_UNAVAILABLE."
+            "url": "{{baseUrl}}/v1/devices",
+            "description": "Idempotent. Cần MongoDB; thiếu Mongo trả 503 STORAGE_UNAVAILABLE."
           },
           "response": []
         },
         {
+          "id": "5de00cae-d629-4181-8728-d0692bcb8794",
           "name": "Subscribe to storm",
           "event": [
             {
@@ -697,9 +503,8 @@
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
-                  "const d = pm.response.json().data;",
-                  "pm.test('subscribed = true', () => pm.expect(d.subscribed).to.eql(true));",
-                  "console.log('alreadySubscribed:', d.alreadySubscribed);"
+                  "pm.test('subscribed = true', () => pm.expect(pm.response.json().data.subscribed).to.eql(true));",
+                  "console.log('alreadySubscribed:', pm.response.json().data.alreadySubscribed);"
                 ]
               }
             }
@@ -721,21 +526,12 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/storm-subscriptions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storm-subscriptions"
-              ]
-            },
-            "description": "Theo dõi 1 cơn bão. Idempotent."
+            "url": "{{baseUrl}}/v1/storm-subscriptions"
           },
           "response": []
         },
         {
+          "id": "435c2761-7837-4862-8c90-2c79ee534e8c",
           "name": "Unsubscribe from storm",
           "event": [
             {
@@ -745,9 +541,8 @@
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('ok = true', () => pm.expect(pm.response.json().ok).to.eql(true));",
-                  "const d = pm.response.json().data;",
-                  "pm.test('subscribed = false', () => pm.expect(d.subscribed).to.eql(false));",
-                  "console.log('removed:', d.removed);"
+                  "pm.test('subscribed = false', () => pm.expect(pm.response.json().data.subscribed).to.eql(false));",
+                  "console.log('removed:', pm.response.json().data.removed);"
                 ]
               }
             }
@@ -769,22 +564,13 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/storm-subscriptions/unsubscribe",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storm-subscriptions",
-                "unsubscribe"
-              ]
-            },
+            "url": "{{baseUrl}}/v1/storm-subscriptions/unsubscribe",
             "description": "removed = false nghĩa là vốn không theo dõi. Vẫn trả 200."
           },
           "response": []
         },
         {
+          "id": "ef7a604f-405a-4629-84a1-4c3e7b85bef0",
           "name": "Save region subscription",
           "event": [
             {
@@ -816,26 +602,19 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/region-subscriptions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "region-subscriptions"
-              ]
-            },
-            "description": "Mỗi device 1 vùng, gọi lại là ghi đè. lat/lon/radiusKm phải là number, không nhận string. radiusKm từ 1 đến 2000."
+            "url": "{{baseUrl}}/v1/region-subscriptions",
+            "description": "Mỗi device 1 vùng, gọi lại là ghi đè. lat/lon/radiusKm phải là number. radiusKm 1..2000."
           },
           "response": []
         }
       ]
     },
     {
+      "id": "930797b2-09ed-4bd4-88fd-f769ce9a62c3",
       "name": "Notifications",
       "item": [
         {
+          "id": "077a9d04-5c18-4125-8c89-4f3c2f01c1fc",
           "name": "Send push notification",
           "event": [
             {
@@ -843,8 +622,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// deviceToken mac dinh la gia -> APNs tra 400 INVALID_DEVICE_TOKEN. Day la DUNG.",
-                  "// Doi bien deviceToken thanh token that tu app iOS de nhan push that.",
+                  "// deviceToken mac dinh la GIA -> APNs tra 400 INVALID_DEVICE_TOKEN. Day la DUNG.",
                   "pm.test('status 200 / 400 / 503', () => pm.expect([200, 400, 503]).to.include(pm.response.code));",
                   "const b = pm.response.json();",
                   "if (pm.response.code === 200) {",
@@ -877,27 +655,19 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/notifications/send",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "notifications",
-                "send"
-              ]
-            },
-            "description": "Gửi 1 push tới 1 device token.\n\ndeviceToken mặc định là giả nên APNs sẽ trả 400 INVALID_DEVICE_TOKEN — đúng như mong đợi.\nMuốn test thật: đổi biến deviceToken thành token lấy từ app iOS.\n503 PUSH_NOT_CONFIGURED = thiếu biến APNS_* hoặc sai đường dẫn .p8."
+            "url": "{{baseUrl}}/v1/notifications/send",
+            "description": "Đổi biến deviceToken thành token thật từ app iOS để gửi push thật. 503 = thiếu biến APNS_* hoặc sai đường dẫn .p8."
           },
           "response": []
         }
       ]
     },
     {
+      "id": "521df1de-8f82-47b4-8d19-1109f5bd2e1e",
       "name": "Validation errors",
       "item": [
         {
+          "id": "c7e071d6-75b9-4d62-8bbd-1dbffc48b51b",
           "name": "Storms - region sai (400)",
           "event": [
             {
@@ -906,7 +676,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -914,26 +683,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms?region=khong-ton-tai",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms"
-              ],
-              "query": [
-                {
-                  "key": "region",
-                  "value": "khong-ton-tai"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/storms?region=khong-ton-tai"
           },
           "response": []
         },
         {
+          "id": "ee709212-1d46-4995-8110-d8648cb87fe6",
           "name": "Weather - lat ngoai khoang (400)",
           "event": [
             {
@@ -942,7 +697,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -950,31 +704,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/weather/current?lat=91&lon=106",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "weather",
-                "current"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "91"
-                },
-                {
-                  "key": "lon",
-                  "value": "106"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/weather/current?lat=91&lon=106"
           },
           "response": []
         },
         {
+          "id": "f580cf4f-5506-4cbb-8b95-83ab408c2d4e",
           "name": "Weather - units sai (400)",
           "event": [
             {
@@ -983,7 +718,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -991,35 +725,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/weather/current?lat=10&lon=106&units=kelvin",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "weather",
-                "current"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "10"
-                },
-                {
-                  "key": "lon",
-                  "value": "106"
-                },
-                {
-                  "key": "units",
-                  "value": "kelvin"
-                }
-              ]
-            }
+            "url": "{{baseUrl}}/v1/weather/current?lat=10&lon=106&units=kelvin"
           },
           "response": []
         },
         {
+          "id": "1829e9ec-3387-400e-8b61-470f116449e2",
           "name": "Map tile - zoom ngoai 2..7 (400)",
           "event": [
             {
@@ -1028,7 +739,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1036,24 +746,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/1/0/0",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "windSpeed",
-                "1",
-                "0",
-                "0"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/map-tiles/windSpeed/1/0/0"
           },
           "response": []
         },
         {
+          "id": "accce315-1776-4794-812e-804c06a5ee74",
           "name": "Map tile - x ngoai luoi (400)",
           "event": [
             {
@@ -1062,7 +760,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1070,24 +767,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/map-tiles/windSpeed/2/4/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "map-tiles",
-                "windSpeed",
-                "2",
-                "4",
-                "1"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/map-tiles/windSpeed/2/4/1"
           },
           "response": []
         },
         {
+          "id": "fa4fe36c-9e50-4bfd-807f-198f6aa4e39c",
           "name": "Storm track - stormId sai dinh dang (400)",
           "event": [
             {
@@ -1096,7 +781,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1104,22 +788,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/storms/khong-phai-bao/track",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "storms",
-                "khong-phai-bao",
-                "track"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/storms/khong-phai-bao/track"
           },
           "response": []
         },
         {
+          "id": "af72fc8c-dea1-4b9d-89bd-2a6c942b5689",
           "name": "Route khong ton tai (404)",
           "event": [
             {
@@ -1135,20 +809,12 @@
           ],
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/v1/khong-ton-tai",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "khong-ton-tai"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/khong-ton-tai"
           },
           "response": []
         },
         {
+          "id": "3ff6c516-ea64-433f-86dd-78590df64b95",
           "name": "Device - token sai dinh dang (400)",
           "event": [
             {
@@ -1157,7 +823,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1180,20 +845,12 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/devices",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "devices"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/devices"
           },
           "response": []
         },
         {
+          "id": "44a064d9-44cf-44e4-87b1-d9505363b94a",
           "name": "Region - radiusKm qua lon (400)",
           "event": [
             {
@@ -1202,7 +859,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1225,20 +881,12 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/region-subscriptions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "region-subscriptions"
-              ]
-            }
+            "url": "{{baseUrl}}/v1/region-subscriptions"
           },
           "response": []
         },
         {
+          "id": "7660a8a6-b564-45e7-868b-035c1f58ff48",
           "name": "Region - lat la string (400)",
           "event": [
             {
@@ -1247,7 +895,6 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 400', () => pm.response.to.have.status(400));",
-                  "pm.test('ok = false', () => pm.expect(pm.response.json().ok).to.eql(false));",
                   "pm.test('code = BAD_REQUEST', () => pm.expect(pm.response.json().code).to.eql('BAD_REQUEST'));"
                 ]
               }
@@ -1270,16 +917,100 @@
                 }
               }
             },
-            "url": {
-              "raw": "{{baseUrl}}/v1/region-subscriptions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "region-subscriptions"
-              ]
+            "url": "{{baseUrl}}/v1/region-subscriptions"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "cc6123e0-f429-4195-8dc1-31255ff23123",
+      "name": "Test data (bao that, luon co)",
+      "item": [
+        {
+          "id": "4ab9e6fb-694c-4651-8429-76cf5d512575",
+          "name": "History track - AL052025 Erin (68 diem)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('availability = available', () => pm.expect(d.availability).to.eql('available'));",
+                  "pm.test('co it nhat 60 diem', () => pm.expect(d.history.length).to.be.at.least(60));",
+                  "pm.test('diem co windSpeed va category thuc', () => {",
+                  "    pm.expect(d.history[0].windSpeed).to.be.a('number');",
+                  "    pm.expect(d.history[0].category).to.not.eql('unknown');",
+                  "});",
+                  "console.log(d.history.length + ' diem | ' + d.history[0].datetime + ' -> ' + d.history.at(-1).datetime);"
+                ]
+              }
             }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/storms/nhc:AL052025/history-track",
+            "description": "Bao da ket thuc, doc tu NHC ATCF archive B-deck. Data co san BAT KE co bao active hay khong."
+          },
+          "response": []
+        },
+        {
+          "id": "8646fd32-55fe-4ac6-8c1e-83f472d92bb2",
+          "name": "History track - AL092025 Imelda (38 diem)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('availability = available', () => pm.expect(d.availability).to.eql('available'));",
+                  "pm.test('co it nhat 30 diem', () => pm.expect(d.history.length).to.be.at.least(30));",
+                  "pm.test('diem co windSpeed va category thuc', () => {",
+                  "    pm.expect(d.history[0].windSpeed).to.be.a('number');",
+                  "    pm.expect(d.history[0].category).to.not.eql('unknown');",
+                  "});",
+                  "console.log(d.history.length + ' diem | ' + d.history[0].datetime + ' -> ' + d.history.at(-1).datetime);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/storms/nhc:AL092025/history-track",
+            "description": "Bao da ket thuc, doc tu NHC ATCF archive B-deck. Data co san BAT KE co bao active hay khong."
+          },
+          "response": []
+        },
+        {
+          "id": "9ac9347a-4313-486d-8af6-eb349b603c45",
+          "name": "History track - EP032025 (15 diem)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('availability = available', () => pm.expect(d.availability).to.eql('available'));",
+                  "pm.test('co it nhat 10 diem', () => pm.expect(d.history.length).to.be.at.least(10));",
+                  "pm.test('diem co windSpeed va category thuc', () => {",
+                  "    pm.expect(d.history[0].windSpeed).to.be.a('number');",
+                  "    pm.expect(d.history[0].category).to.not.eql('unknown');",
+                  "});",
+                  "console.log(d.history.length + ' diem | ' + d.history[0].datetime + ' -> ' + d.history.at(-1).datetime);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/storms/nhc:EP032025/history-track",
+            "description": "Bao da ket thuc, doc tu NHC ATCF archive B-deck. Data co san BAT KE co bao active hay khong."
           },
           "response": []
         }

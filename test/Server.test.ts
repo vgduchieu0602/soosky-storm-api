@@ -30,6 +30,7 @@ import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/r
 import MapTileRepository from "../src/domain/repositories/IMapTileRepository.js";
 import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
 import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
 import GetHistoricalStormTrackUseCase from "../src/domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "../src/domain/use-cases/storm/GetStormSpaghettiUseCase.js";
@@ -598,6 +599,56 @@ test("GET /v1/storms returns active NHC storms", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: [stormRepository.summary],
+    });
+});
+
+test("GET /v1/storms/demo returns a fixed list clearly marked as demo data", async () => {
+    const response = await fetch(baseUrl + "/v1/storms/demo");
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+        ok: true,
+        data: [
+            {
+                stormId: "nhc:AL052025",
+                name: "ERIN",
+                source: "nhc",
+                basin: "AL",
+                lat: 18.8,
+                lon: -57.6,
+                datetime: "2025-08-15T12:00:00.000Z",
+                windSpeed: 90,
+                category: "category_2",
+                alertLevel: null,
+                isDemo: true,
+            },
+            {
+                stormId: "nhc:AL092025",
+                name: "IMELDA",
+                source: "nhc",
+                basin: "AL",
+                lat: 25.1,
+                lon: -71.2,
+                datetime: "2025-09-30T12:00:00.000Z",
+                windSpeed: 55,
+                category: "tropical_storm",
+                alertLevel: null,
+                isDemo: true,
+            },
+            {
+                stormId: "nhc:EP032025",
+                name: "ERICK",
+                source: "nhc",
+                basin: "EP",
+                lat: 14.2,
+                lon: -101.4,
+                datetime: "2025-06-19T18:00:00.000Z",
+                windSpeed: 110,
+                category: "category_3",
+                alertLevel: null,
+                isDemo: true,
+            },
+        ],
     });
 });
 
@@ -1660,6 +1711,7 @@ function createUseCases (
     return {
         storm: {
             getActiveStorms: new GetActiveStormsUseCase(repository),
+            getDemoStorms: new GetDemoStormsUseCase(),
             getStormTrack: new GetStormTrackUseCase(repository),
             getStormCone: new GetStormConeUseCase(repository),
             getStormSpaghetti: new GetStormSpaghettiUseCase(spaghetti),

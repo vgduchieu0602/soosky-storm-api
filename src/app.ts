@@ -27,6 +27,7 @@ import CompositeHistoricalStormTrackRepository from "./adapters/storm/CompositeH
 import CompositeStormRepository from "./adapters/storm/CompositeStormRepository.js";
 import config from "./config.js";
 import GetActiveStormsUseCase from "./domain/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "./domain/use-cases/storm/GetDemoStormsUseCase.js";
 import GetStormConeUseCase from "./domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "./domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "./domain/use-cases/storm/GetStormTrackUseCase.js";
@@ -126,6 +127,7 @@ const detectStormAlerts = new DetectStormAlertsUseCase(
 const useCases = {
     storm: {
         getActiveStorms: new GetActiveStormsUseCase(stormRepository),
+        getDemoStorms: new GetDemoStormsUseCase(),
         getStormTrack: new GetStormTrackUseCase(stormRepository),
         getStormCone: new GetStormConeUseCase(stormRepository),
         getStormSpaghetti: new GetStormSpaghettiUseCase(spaghettiRepository),
