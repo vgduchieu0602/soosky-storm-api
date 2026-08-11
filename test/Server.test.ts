@@ -1672,7 +1672,7 @@ function createUseCases (
     return {
         storm: {
             getActiveStorms: new GetActiveStormsUseCase(repository),
-            getDemoStorms: new GetDemoStormsUseCase(),
+            getDemoStorms: new GetDemoStormsUseCase(historicalStormTrack),
             getStormTrack: new GetStormTrackUseCase(repository),
             getStormCone: new GetStormConeUseCase(repository),
             getStormSpaghetti: new GetStormSpaghettiUseCase(spaghetti),

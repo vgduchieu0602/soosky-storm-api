@@ -3,8 +3,10 @@ import test from "node:test";
 import StormSummary from "../src/domain/entities/StormSummary.js";
 import StormCone from "../src/domain/entities/StormCone.js";
 import StormTrack from "../src/domain/entities/StormTrack.js";
+import HistoricalStormTrack from "../src/domain/entities/HistoricalStormTrack.js";
 import StormNotFoundError from "../src/domain/errors/StormNotFoundError.js";
 import StormRepository from "../src/domain/repositories/IStormRepository.js";
+import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoricalStormTrackRepository.js";
 import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
 import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
 import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
@@ -28,13 +30,27 @@ test("Storms use case returns active storm summaries from the repository", async
     assert.deepEqual(await useCase.execute(), [summary]);
 });
 
-test("Demo storms use case generates between one and five clearly marked storms", async () => {
-    const minimum = await new GetDemoStormsUseCase(() => 0).execute();
-    const maximum = await new GetDemoStormsUseCase(() => 0.999).execute();
+test("Demo storms use case maps the latest point of real historical tracks", async () => {
+    const historyRepository = new DemoHistoricalStormTrackRepository();
+    const minimum = await new GetDemoStormsUseCase(historyRepository, () => 0).execute();
+    const maximum = await new GetDemoStormsUseCase(historyRepository, () => 0.999).execute();
 
     assert.equal(minimum.length, 1);
     assert.equal(maximum.length, 5);
     assert.equal(maximum.every((storm) => storm.isDemo), true);
+    assert.deepEqual(minimum[0], {
+        stormId: "nhc:AL052025",
+        name: "ERIN",
+        source: "nhc",
+        basin: "AL",
+        lat: 30.2,
+        lon: -71.4,
+        datetime: "2025-08-22T18:00:00.000Z",
+        windSpeed: 75,
+        category: "category_1",
+        alertLevel: null,
+        isDemo: true,
+    });
 });
 
 test("Storms use case returns the requested track from the repository", async () => {
@@ -108,6 +124,28 @@ class MemoryStormRepository implements StormRepository {
                     coordinates: [[[-130, 20], [-131, 21], [-132, 20], [-130, 20]]],
                 },
             },
+        };
+    }
+}
+
+class DemoHistoricalStormTrackRepository implements HistoricalStormTrackRepository {
+    public async getHistoricalStormTrack (stormId: string): Promise<HistoricalStormTrack> {
+        return {
+            stormId,
+            name: stormId,
+            source: "nhc",
+            trackKind: "best_track",
+            cachedUntil: null,
+            availability: "available",
+            history: [
+                {
+                    lat: 30.2,
+                    lon: -71.4,
+                    datetime: "2025-08-22T18:00:00.000Z",
+                    windSpeed: 75,
+                    category: "category_1",
+                },
+            ],
         };
     }
 }

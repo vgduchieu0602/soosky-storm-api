@@ -127,7 +127,7 @@ const detectStormAlerts = new DetectStormAlertsUseCase(
 const useCases = {
     storm: {
         getActiveStorms: new GetActiveStormsUseCase(stormRepository),
-        getDemoStorms: new GetDemoStormsUseCase(),
+        getDemoStorms: new GetDemoStormsUseCase(historicalStormTrackRepository),
         getStormTrack: new GetStormTrackUseCase(stormRepository),
         getStormCone: new GetStormConeUseCase(stormRepository),
         getStormSpaghetti: new GetStormSpaghettiUseCase(spaghettiRepository),
