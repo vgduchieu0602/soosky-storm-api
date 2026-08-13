@@ -51,6 +51,7 @@ const stormStateSchema = new mongoose.Schema({
     windSpeed: { type: Number, default: null },
     category: { type: String, required: true },
     alertLevel: { type: String, default: null },
+    watchWarning: { type: String, default: null },
     bearing: { type: Number, default: null },
 }, {
     collection: "storm_states",

@@ -574,6 +574,21 @@ Body giống trên. **Output 200:** `{ "stormId": "...", "subscribed": false, "r
 
 Mỗi device có **một** vùng — gọi lại là **ghi đè**.
 
+### Loại alert tự động
+
+Scheduler gửi push cho device theo dõi bão hoặc nằm trong vùng đã đăng ký. `type` nội bộ của alert dùng các giá trị ổn định sau:
+
+| `type` | Nhãn hiển thị | Điều kiện |
+| --- | --- | --- |
+| `new_storm` | New storm | Phát hiện cơn bão active lần đầu. |
+| `track_change` | Track change | Hướng di chuyển đổi từ 45° trở lên. |
+| `category_change` | Category change | Category cường độ thay đổi. |
+| `alert_level_change` | Alert level change | GDACS Green/Orange/Red thay đổi. |
+| `watch_warning` | Watch/Warning | NHC phát hành hoặc cập nhật Storm Surge Watch/Warning advisory. |
+| `storm_dissipated` | Storm dissipated | Cơn bão không còn trong danh sách active. |
+
+Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", "trackingId" }` để FE mở đúng màn hình bão. `POST /v1/notifications/send` là push thủ công nên không tự thêm các trường này.
+
 ### `POST /v1/notifications/send`
 
 | Field | Bắt buộc | Ràng buộc |

@@ -132,6 +132,25 @@ test("detects a GDACS alert level change", async () => {
     assert.equal(world.push.sent[0]?.title, "Genevieve alert level: Red");
 });
 
+test("detects a watch or warning change", async () => {
+    const world = createWorld({ storms: [storm({ watchWarning: "Tropical Storm Watch" })], followers: { [STORM_ID]: [FOLLOWER] } });
+
+    await world.useCase.execute();
+    world.push.sent.length = 0;
+    world.storms.storms = [storm({ watchWarning: "Hurricane Warning" })];
+
+    const result = await world.useCase.execute();
+
+    assert.deepEqual(result.alerts.map((alert) => alert.type), ["watch_warning"]);
+    assert.equal(world.push.sent[0]?.title, "Genevieve watch/warning updated");
+    assert.match(world.push.sent[0]?.description ?? "", /Hurricane Warning/);
+    assert.deepEqual(world.push.sent[0]?.data, {
+        type: "watch_warning",
+        stormId: STORM_ID,
+        trackingId: STORM_ID,
+    });
+});
+
 test("detects a dissipated storm and clears its stored state", async () => {
     const world = createWorld({ storms: [storm({})], followers: { [STORM_ID]: [FOLLOWER] } });
 

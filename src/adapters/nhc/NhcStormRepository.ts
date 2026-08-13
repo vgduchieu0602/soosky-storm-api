@@ -25,6 +25,7 @@ interface NhcActiveStorm {
         issuance: string;
         kmzFile: string;
     };
+    watchWarning: string | null;
 }
 
 class NhcStormRepository implements StormRepository {
@@ -141,8 +142,8 @@ class NhcStormRepository implements StormRepository {
             datetime: storm.lastUpdate,
             windSpeed: storm.intensity,
             category: getStormCategoryFromWindSpeed(storm.intensity),
-            // NHC's active-storm feed carries no watch/warning level.
             alertLevel: null,
+            watchWarning: storm.watchWarning,
         };
     }
 
@@ -235,6 +236,7 @@ function parseNhcActiveStorm (value: unknown): NhcActiveStorm {
             kmzFile: readRequiredString(forecastTrack, "kmzFile"),
         },
         trackCone: toTrackCone(readOptionalRecord(value, "trackCone")),
+        watchWarning: toWatchWarning(readOptionalRecord(value, "stormSurgeWatchWarningGIS")),
     };
 }
 
@@ -247,6 +249,14 @@ function toTrackCone (value: Record<string, unknown> | null): NhcActiveStorm["tr
         issuance: readRequiredString(value, "issuance"),
         kmzFile: readRequiredString(value, "kmzFile"),
     };
+}
+
+function toWatchWarning (value: Record<string, unknown> | null): string | null {
+    if (!value) {
+        return null;
+    }
+
+    return "Storm surge watch/warning advisory " + readRequiredString(value, "issuance");
 }
 
 function getBasin (nhcId: string): string | null {

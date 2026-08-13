@@ -99,6 +99,7 @@ class ApnsPushNotificationRepository implements PushNotificationRepository {
                         },
                         sound: "default",
                     },
+                    ...notification.data,
                 }),
             });
         } catch (error) {

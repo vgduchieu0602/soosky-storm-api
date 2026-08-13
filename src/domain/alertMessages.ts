@@ -65,6 +65,14 @@ function buildStormAlertMessage (alert: StormAlert, distanceKm: number | null): 
                     + (alert.alertLevel ?? "updated") + describeDistance(distanceKm) + ".",
                 ]),
             };
+        case "watch_warning":
+            return {
+                title: alert.stormName + " watch/warning updated",
+                description: joinSentences([
+                    (alert.watchWarning ?? "A watch or warning") + " applies to " + alert.stormName
+                    + describeDistance(distanceKm) + ".",
+                ]),
+            };
         default:
             return {
                 title: alert.stormName + " has dissipated",

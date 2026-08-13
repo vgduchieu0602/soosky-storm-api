@@ -39,6 +39,7 @@ function toStormState (document: Record<string, unknown>): StormState {
         windSpeed: typeof document.windSpeed === "number" ? document.windSpeed : null,
         category: String(document.category) as StormState["category"],
         alertLevel: typeof document.alertLevel === "string" ? document.alertLevel : null,
+        watchWarning: typeof document.watchWarning === "string" ? document.watchWarning : null,
         bearing: typeof document.bearing === "number" ? document.bearing : null,
     };
 }

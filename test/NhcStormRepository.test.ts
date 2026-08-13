@@ -42,6 +42,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
             windSpeed: 50,
             category: "tropical_storm",
             alertLevel: null,
+            watchWarning: "Storm surge watch/warning advisory 2026-07-31T21:00:00.000Z",
         },
     ]);
 

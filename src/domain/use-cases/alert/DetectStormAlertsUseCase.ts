@@ -114,6 +114,11 @@ class DetectStormAlertsUseCase {
                     deviceToken,
                     title: message.title,
                     description: message.description,
+                    data: {
+                        type: alert.type,
+                        stormId: alert.stormId,
+                        trackingId: alert.trackingId,
+                    },
                 });
                 sent += 1;
             } catch (error) {
@@ -152,6 +157,12 @@ function detectChanges (storm: StormSummary, previous: StormState | null): Storm
 
     if (storm.alertLevel !== null && storm.alertLevel !== previous.alertLevel) {
         alerts.push(toAlert(storm, "alert_level_change", storm.alertLevel, direction));
+    }
+
+    const watchWarning = storm.watchWarning ?? null;
+
+    if (watchWarning !== null && watchWarning !== previous.watchWarning) {
+        alerts.push(toAlert(storm, "watch_warning", watchWarning, direction));
     }
 
     if (hasChangedCourse(storm, previous) && direction !== null) {
@@ -201,6 +212,7 @@ function toStormState (storm: StormSummary, previous: StormState | null): StormS
         windSpeed: storm.windSpeed,
         category: storm.category,
         alertLevel: storm.alertLevel,
+        watchWarning: storm.watchWarning ?? null,
         bearing: getMovementBearing(storm, previous) ?? previous?.bearing ?? null,
     };
 }
@@ -222,6 +234,7 @@ function toAlert (
         windSpeed: storm.windSpeed,
         category: storm.category,
         alertLevel: storm.alertLevel,
+        watchWarning: storm.watchWarning ?? null,
         direction,
     };
 }
@@ -238,6 +251,7 @@ function toDissipatedAlert (state: StormState): StormAlert {
         windSpeed: state.windSpeed,
         category: state.category,
         alertLevel: state.alertLevel,
+        watchWarning: state.watchWarning,
         direction: null,
     };
 }

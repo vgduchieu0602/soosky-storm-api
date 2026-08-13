@@ -27,4 +27,6 @@ interface StormSummary {
     category: StormCategory;
     /** GDACS publishes Green/Orange/Red; NHC's active-storm feed has no equivalent. */
     alertLevel: string | null;
+    /** NHC's current storm-surge watch/warning advisory, when published. */
+    watchWarning?: string | null;
 }

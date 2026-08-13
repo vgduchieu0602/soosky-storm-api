@@ -6,6 +6,7 @@ const STORM_ALERT_TYPES = [
     "category_change",
     "track_change",
     "alert_level_change",
+    "watch_warning",
     "storm_dissipated",
 ] as const;
 
@@ -23,5 +24,6 @@ interface StormAlert {
     windSpeed: number | null;
     category: string;
     alertLevel: string | null;
+    watchWarning: string | null;
     direction: string | null;
 }
