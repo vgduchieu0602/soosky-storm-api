@@ -14,14 +14,16 @@ dotenv.config({
     override: false,
 });
 
-// TAM THOI (giai doan tester): moi TTL cache deu ha xuong 10 phut.
-// Doi lai gia tri production sau khi test xong:
-//   stormTtlMs 7_200_000 | activeStormsTtlMs 3_600_000 | historicalStormTrackTtlMs 7_200_000
-//   forecastWeatherTtlMs 86_400_000 (tester: 20 phut) | mapTileTtlMs 43_200_000 | radarTtlMs 43_200_000
-//   currentWeatherTtlMs 600_000
-const TESTING_CACHE_TTL_MS = 600_000;
-// Forecast 10 ngay doi cham hon quan trac: tester dung 20 phut thay vi 10.
-const TESTING_FORECAST_CACHE_TTL_MS = 1_200_000;
+// Production-safe fallbacks. Staging and tester environments override these in .env.
+const PRODUCTION_CACHE_TTL_MS = {
+    storm: 7_200_000,
+    activeStorms: 3_600_000,
+    historicalStormTrack: 7_200_000,
+    forecastWeather: 86_400_000,
+    currentWeather: 600_000,
+    mapTile: 43_200_000,
+    radar: 43_200_000,
+};
 
 const config = {
     http: {
@@ -38,13 +40,22 @@ const config = {
         archiveUrl: process.env.NHC_ATCF_ARCHIVE_URL || "https://ftp.nhc.noaa.gov/atcf/archive",
     },
     cache: {
-        stormTtlMs: readPositiveInt("NHC_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
-        activeStormsTtlMs: readPositiveInt("ACTIVE_STORMS_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
-        historicalStormTrackTtlMs: readPositiveInt("HISTORICAL_STORM_TRACK_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
-        forecastWeatherTtlMs: readPositiveInt("FORECAST_WEATHER_CACHE_TTL_MS", TESTING_FORECAST_CACHE_TTL_MS),
-        currentWeatherTtlMs: readPositiveInt("CURRENT_WEATHER_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
-        mapTileTtlMs: readPositiveInt("MAP_TILE_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
-        radarTtlMs: readPositiveInt("RADAR_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        stormTtlMs: readPositiveInt("NHC_CACHE_TTL_MS", PRODUCTION_CACHE_TTL_MS.storm),
+        activeStormsTtlMs: readPositiveInt("ACTIVE_STORMS_CACHE_TTL_MS", PRODUCTION_CACHE_TTL_MS.activeStorms),
+        historicalStormTrackTtlMs: readPositiveInt(
+            "HISTORICAL_STORM_TRACK_CACHE_TTL_MS",
+            PRODUCTION_CACHE_TTL_MS.historicalStormTrack,
+        ),
+        forecastWeatherTtlMs: readPositiveInt(
+            "FORECAST_WEATHER_CACHE_TTL_MS",
+            PRODUCTION_CACHE_TTL_MS.forecastWeather,
+        ),
+        currentWeatherTtlMs: readPositiveInt(
+            "CURRENT_WEATHER_CACHE_TTL_MS",
+            PRODUCTION_CACHE_TTL_MS.currentWeather,
+        ),
+        mapTileTtlMs: readPositiveInt("MAP_TILE_CACHE_TTL_MS", PRODUCTION_CACHE_TTL_MS.mapTile),
+        radarTtlMs: readPositiveInt("RADAR_CACHE_TTL_MS", PRODUCTION_CACHE_TTL_MS.radar),
     },
     gdacs: {
         geometryUrl: process.env.GDACS_GEOMETRY_URL || "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry",
