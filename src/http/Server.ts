@@ -550,8 +550,17 @@ function readRequiredField (body: Record<string, unknown>, name: string, maxLeng
 }
 
 function parseWeatherQuery (request: Request): { lat: number; lon: number; units: ForecastUnits } {
-    const lat = parseCoordinate(request.query.lat, "lat", -90, 90);
-    const lon = parseCoordinate(request.query.lon, "lon", -180, 180);
+    if (!isNonEmptyQueryParam(request.query.lat) || !isNonEmptyQueryParam(request.query.lon)) {
+        throw new ClientError("Query params 'lat' and 'lon' are required.");
+    }
+
+    const lat = parseCoordinate(request.query.lat, -90, 90);
+    const lon = parseCoordinate(request.query.lon, -180, 180);
+
+    if (lat === null || lon === null) {
+        throw new ClientError("Query params 'lat' and 'lon' must be valid decimal coordinates.");
+    }
+
     const units = request.query.units === undefined ? "metric" : request.query.units;
 
     if (!isForecastUnits(units)) {
@@ -561,15 +570,16 @@ function parseWeatherQuery (request: Request): { lat: number; lon: number; units
     return { lat, lon, units };
 }
 
-function parseCoordinate (value: unknown, name: string, min: number, max: number): number {
-    if (typeof value !== "string" || !value.trim()) {
-        throw new ClientError("Query param '" + name + "' is invalid.");
-    }
+function isNonEmptyQueryParam (value: unknown): value is string {
+    return typeof value === "string" && Boolean(value.trim());
+}
+
+function parseCoordinate (value: string, min: number, max: number): number | null {
 
     const coordinate = Number(value);
 
     if (!Number.isFinite(coordinate) || coordinate < min || coordinate > max) {
-        throw new ClientError("Query param '" + name + "' is invalid.");
+        return null;
     }
 
     return coordinate;

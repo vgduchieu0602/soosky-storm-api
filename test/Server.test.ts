@@ -695,6 +695,32 @@ test("GET /v1/weather/forecast rejects invalid coordinates and units", async () 
     assert.equal(invalidUnits.status, 400);
 });
 
+test("weather endpoints explain when latitude and longitude are blank", async () => {
+    for (const path of ["/v1/weather/current?lat=&lon=", "/v1/weather/forecast?lat=&lon="]) {
+        const response = await fetch(baseUrl + path);
+
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+            ok: false,
+            code: "BAD_REQUEST",
+            reason: "Query params 'lat' and 'lon' are required.",
+        });
+    }
+});
+
+test("weather endpoints explain when latitude and longitude are invalid", async () => {
+    for (const path of ["/v1/weather/current?lat=dfvgd&lon=bbff", "/v1/weather/forecast?lat=dfvgd&lon=bbff"]) {
+        const response = await fetch(baseUrl + path);
+
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+            ok: false,
+            code: "BAD_REQUEST",
+            reason: "Query params 'lat' and 'lon' must be valid decimal coordinates.",
+        });
+    }
+});
+
 test("GET /v1/weather/forecast maps an upstream error to 502", async () => {
     forecastWeatherRepository.error = new StormProviderError("OpenWeather timed out.");
 

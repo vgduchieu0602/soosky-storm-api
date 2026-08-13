@@ -364,7 +364,11 @@ Thời tiết hiện tại tại một điểm.
 
 FE dùng `weather[0].icon` để hiển thị icon: `01d`/`01n` (trời quang ngày/đêm), `10d` (mưa)... URL icon: `https://openweathermap.org/img/wn/{icon}@2x.png`
 
-**Lỗi:** 400 thiếu/sai `lat`/`lon`/`units` · 502 OpenWeather lỗi.
+**Lỗi:**
+
+- `400` khi `lat` hoặc `lon` bị thiếu/rỗng: `Query params 'lat' and 'lon' are required.`
+- `400` khi một trong hai toạ độ không phải số thập phân hợp lệ hoặc ngoài phạm vi: `Query params 'lat' and 'lon' must be valid decimal coordinates.`
+- `400` khi `units` không hợp lệ · `502` khi OpenWeather lỗi.
 
 ---
 
