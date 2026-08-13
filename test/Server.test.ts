@@ -567,6 +567,7 @@ test("GET /health returns the service health envelope", async () => {
             service: "soosky-storm-api",
             database: "connected",
         },
+        cacheStatus: "bypass",
     });
 });
 
@@ -583,6 +584,7 @@ test("GET /health reports the live database status instead of a fixed value", as
                 service: "soosky-storm-api",
                 database: "disconnected",
             },
+            cacheStatus: "bypass",
         });
     } finally {
         databaseStatus = "connected";
@@ -607,6 +609,7 @@ test("GET /v1/storms returns active NHC storms", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: [stormRepository.summary],
+        cacheStatus: "bypass",
     });
 });
 
@@ -628,6 +631,7 @@ test("GET /v1/storms returns every provider's storms when no region is given", a
     assert.deepEqual(await response.json(), {
         ok: true,
         data: [stormRepository.summary, stormRepository.gdacsSummary],
+        cacheStatus: "bypass",
     });
 });
 
@@ -638,6 +642,7 @@ test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: [stormRepository.gdacsSummary],
+        cacheStatus: "bypass",
     });
 });
 
@@ -697,7 +702,7 @@ test("GET /v1/weather/forecast maps an upstream error to 502", async () => {
         const response = await fetch(baseUrl + "/v1/weather/forecast?lat=10&lon=106");
 
         assert.equal(response.status, 502);
-        assert.equal(response.headers.get("x-cache-status"), "upstream");
+        assert.equal((await response.json()).cacheStatus, "upstream");
     } finally {
         forecastWeatherRepository.error = null;
     }
@@ -736,7 +741,11 @@ test("GET /v1/radar returns the RainViewer manifest envelope", async () => {
     const response = await fetch(baseUrl + "/v1/radar");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, data: radarRepository.radar });
+    assert.deepEqual(await response.json(), {
+        ok: true,
+        data: radarRepository.radar,
+        cacheStatus: "bypass",
+    });
 });
 
 test("GET /v1/radar maps an upstream error to 502", async () => {
@@ -775,6 +784,7 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
             }],
             forecast: [],
         },
+        cacheStatus: "bypass",
     });
 });
 
@@ -785,7 +795,8 @@ test("GET /v1/storms/:stormId/track exposes whether the result came from cache",
         const response = await fetch(baseUrl + "/v1/storms/nhc:EP072026/track");
 
         assert.equal(response.status, 200);
-        assert.equal(response.headers.get("x-cache-status"), "cached");
+        assert.equal(response.headers.get("x-cache-status"), null);
+        assert.equal((await response.json()).cacheStatus, "cached");
     } finally {
         markCacheStatus(stormRepository.track, "upstream");
     }
@@ -824,6 +835,7 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
                 forecastHour: 12,
             }],
         },
+        cacheStatus: "bypass",
     });
 });
 
@@ -902,6 +914,7 @@ test("GET /v1/storms/:stormId/track maps a provider failure to 502", async () =>
             ok: false,
             code: "UPSTREAM_UNAVAILABLE",
             reason: "Storm data is temporarily unavailable",
+            cacheStatus: "upstream",
         });
     } finally {
         stormRepository.trackError = null;
@@ -915,6 +928,7 @@ test("GET /v1/storms/:stormId/spaghetti returns model forecast lines", async () 
     assert.deepEqual(await response.json(), {
         ok: true,
         data: spaghettiRepository.spaghetti,
+        cacheStatus: "bypass",
     });
 });
 
@@ -944,6 +958,7 @@ test("GET /v1/storms/:stormId/spaghetti returns unsupported NHC basins as succes
             reason: "NHC ATCF spaghetti data is supported only for AL, EP, and CP basins.",
             models: [],
         },
+        cacheStatus: "bypass",
     });
 });
 
@@ -958,6 +973,7 @@ test("GET /v1/storms/:stormId/spaghetti maps a provider failure to 502", async (
             ok: false,
             code: "UPSTREAM_UNAVAILABLE",
             reason: "Storm data is temporarily unavailable",
+            cacheStatus: "upstream",
         });
     } finally {
         spaghettiRepository.error = null;
@@ -971,6 +987,7 @@ test("GET /v1/storms/:stormId/cone returns an NHC GeoJSON cone", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: stormRepository.cone,
+        cacheStatus: "bypass",
     });
 });
 
@@ -1000,6 +1017,7 @@ test("GET /v1/storms/:stormId/cone returns a GDACS event area", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: stormRepository.gdacsCone,
+        cacheStatus: "bypass",
     });
 });
 
@@ -1046,6 +1064,7 @@ test("GET /v1/storms/:stormId/history-track returns the normalized history", asy
     assert.deepEqual(await response.json(), {
         ok: true,
         data: historicalStormTrackRepository.historyTrack,
+        cacheStatus: "bypass",
     });
 });
 
@@ -1056,6 +1075,7 @@ test("GET /v1/weather/current returns the normalized observation", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: currentWeatherRepository.observation,
+        cacheStatus: "bypass",
     });
 });
 
@@ -1290,6 +1310,7 @@ test("POST /v1/notifications/send delivers the notification and returns the stan
             description: "Hurricane Erin may affect your area.",
             sent: true,
         },
+        cacheStatus: "bypass",
     });
     assert.deepEqual(pushNotificationRepository.sent.at(-1), {
         deviceToken: VALID_DEVICE_TOKEN,
@@ -1450,6 +1471,7 @@ test("POST /v1/devices registers a device token", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: { registered: true, alreadyRegistered: false },
+        cacheStatus: "bypass",
     });
     assert.equal(deviceRepository.tokens.has(VALID_DEVICE_TOKEN), true);
 });
@@ -1521,6 +1543,7 @@ test("POST /v1/storm-subscriptions subscribes a device to one storm", async () =
     assert.deepEqual(await response.json(), {
         ok: true,
         data: { stormId: "nhc:EP072026", subscribed: true, alreadySubscribed: false },
+        cacheStatus: "bypass",
     });
 });
 
@@ -1592,6 +1615,7 @@ test("POST /v1/storm-subscriptions/unsubscribe removes an existing subscription"
     assert.deepEqual(await response.json(), {
         ok: true,
         data: { stormId: "nhc:EP072026", subscribed: false, removed: true },
+        cacheStatus: "bypass",
     });
 });
 
@@ -1628,6 +1652,7 @@ test("PUT /v1/region-subscriptions saves a region for a device", async () => {
     assert.deepEqual(await response.json(), {
         ok: true,
         data: { lat: 10.8231, lon: 106.6297, radiusKm: 300, saved: true },
+        cacheStatus: "bypass",
     });
 });
 

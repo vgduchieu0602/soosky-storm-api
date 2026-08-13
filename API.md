@@ -78,7 +78,15 @@ Field nào provider không cung cấp thì là **`null`**, không bao giờ là 
 
 ### Cache status cho tester
 
-Mọi response có header `X-Cache-Status` để tester biết request có gọi upstream hay không; header này không làm thay đổi JSON contract.
+Mọi response JSON thành công có trường top-level `cacheStatus` để tester biết request có gọi upstream hay không:
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "cacheStatus": "cached"
+}
+```
 
 | Giá trị | Ý nghĩa |
 | --- | --- |
@@ -86,7 +94,9 @@ Mọi response có header `X-Cache-Status` để tester biết request có gọi
 | `cached` | Cache hit: dữ liệu được trả từ cache in-memory, không gọi provider. |
 | `bypass` | Endpoint không dùng cache, ví dụ health, đăng ký device và subscribe/unsubscribe. |
 
-Với API tile ảnh, kiểm tra header này trong Postman/Network vì body không phải JSON.
+Nếu nguồn dữ liệu lỗi, response `502 UPSTREAM_UNAVAILABLE` cũng có `cacheStatus: "upstream"`.
+
+`GET /v1/map-tiles/:z/:x/:y` trả dữ liệu ảnh nhị phân nên không có `cacheStatus`: không dùng header thay thế để tránh thay đổi hoặc làm hỏng contract ảnh.
 
 ---
 

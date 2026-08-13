@@ -80,7 +80,6 @@ type StormRegion = "all" | "us-nhc" | "gdacs";
 const NHC_STORM_ID_PATTERN = /^nhc:[A-Z]{2}\d{6}$/;
 const NHC_SUPPORTED_STORM_ID_PATTERN = /^nhc:(AL|EP|CP)\d{6}$/;
 const GDACS_STORM_ID_PATTERN = /^gdacs:TC:[1-9]\d*:[1-9]\d*$/;
-const CACHE_STATUS_HEADER = "X-Cache-Status";
 /** Push failures are reported without any APNs reason, key, or token detail. */
 const PUSH_ERROR_RESPONSES = {
     invalid_device_token: {
@@ -177,10 +176,6 @@ class Server {
     private _registerRouter (): void {
         this._server.set("trust proxy", this._config.http.trustProxy ?? 1);
         this._server.use(express.json({ limit: "64kb" }));
-        this._server.use((_request: Request, response: Response, next: NextFunction) => {
-            response.set(CACHE_STATUS_HEADER, "bypass");
-            next();
-        });
         this._server.use((request: Request, response: Response, next: NextFunction) => {
             const scope = this._rateLimiter.check(request.ip ?? "unknown");
 
@@ -221,11 +216,11 @@ class Server {
                     });
                     return;
                 case error instanceof StormProviderError:
-                    response.set(CACHE_STATUS_HEADER, "upstream");
                     response.status(502).json({
                         ok: false,
                         code: "UPSTREAM_UNAVAILABLE",
                         reason: "Storm data is temporarily unavailable",
+                        cacheStatus: "upstream",
                     });
                     return;
                 case isRequestBodyError(error):
@@ -270,13 +265,10 @@ class Server {
     }
 
     private _GET_health (_request: Request, response: Response): void {
-        response.json({
-            ok: true,
-            data: formatResponseData({
-                service: "soosky-storm-api",
-                database: this._getDatabaseStatus(),
-            }),
-        });
+        this._sendData(response, formatResponseData({
+            service: "soosky-storm-api",
+            database: this._getDatabaseStatus(),
+        }));
     }
 
     private async _GET_storms (request: Request, response: Response): Promise<void> {
@@ -290,31 +282,27 @@ class Server {
             region === "all" ? {} : { source: REGION_SOURCES[region] },
         );
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_demoStorms (_request: Request, response: Response): Promise<void> {
         const data = await this._useCases.storm.getDemoStorms.execute();
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_forecastWeather (request: Request, response: Response): Promise<void> {
         const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getForecastWeather.execute({ lat, lon, units });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_currentWeather (request: Request, response: Response): Promise<void> {
         const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getCurrentWeather.execute({ lat, lon, units });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _POST_sendNotification (request: Request, response: Response): Promise<void> {
@@ -325,7 +313,7 @@ class Server {
             description: readRequiredField(payload, "description", 2048),
         });
 
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _POST_registerDevice (request: Request, response: Response): Promise<void> {
@@ -334,7 +322,7 @@ class Server {
             deviceToken: readDeviceToken(body),
         });
 
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _POST_subscribeToStorm (request: Request, response: Response): Promise<void> {
@@ -344,7 +332,7 @@ class Server {
             stormId: readStormId(body),
         });
 
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _POST_unsubscribeFromStorm (request: Request, response: Response): Promise<void> {
@@ -354,7 +342,7 @@ class Server {
             stormId: readStormId(body),
         });
 
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _PUT_regionSubscription (request: Request, response: Response): Promise<void> {
@@ -366,7 +354,7 @@ class Server {
             radiusKm: readRadiusKm(body),
         });
 
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_mapTile (request: Request, response: Response): Promise<void> {
@@ -391,7 +379,6 @@ class Server {
 
         const tile = await this._useCases.map.getMapTile.execute({ layer, z, x, y });
 
-        this._setCacheStatus(response, tile);
         response.set("Content-Type", tile.contentType);
         response.send(tile.buffer);
     }
@@ -399,8 +386,7 @@ class Server {
     private async _GET_radar (_request: Request, response: Response): Promise<void> {
         const data = await this._useCases.radar.getRadar.execute();
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_stormTrack (request: Request, response: Response): Promise<void> {
@@ -412,8 +398,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormTrack.execute({ stormId });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data: formatStormTrackResponse(data) });
+        this._sendData(response, formatStormTrackResponse(data), data);
     }
 
     private async _GET_stormCone (request: Request, response: Response): Promise<void> {
@@ -425,8 +410,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormCone.execute({ stormId });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_stormSpaghetti (request: Request, response: Response): Promise<void> {
@@ -438,8 +422,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormSpaghetti.execute({ stormId });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
     private async _GET_historicalStormTrack (request: Request, response: Response): Promise<void> {
@@ -451,12 +434,15 @@ class Server {
 
         const data = await this._useCases.storm.getHistoricalStormTrack.execute({ stormId });
 
-        this._setCacheStatus(response, data);
-        response.json({ ok: true, data });
+        this._sendData(response, data);
     }
 
-    private _setCacheStatus (response: Response, data: unknown): void {
-        response.set(CACHE_STATUS_HEADER, getCacheStatus(data) ?? "bypass");
+    private _sendData (response: Response, data: unknown, cacheSource: unknown = data): void {
+        response.json({
+            ok: true,
+            data,
+            cacheStatus: getCacheStatus(cacheSource) ?? "bypass",
+        });
     }
 }
 
