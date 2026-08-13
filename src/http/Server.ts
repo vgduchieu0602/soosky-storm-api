@@ -4,6 +4,7 @@ import StormNotFoundError from "../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../domain/errors/StormProviderError.js";
 import GetActiveStormsUseCase from "../domain/use-cases/storm/GetActiveStormsUseCase.js";
 import GetDemoStormsUseCase from "../domain/use-cases/storm/GetDemoStormsUseCase.js";
+import GetTrackedStormsUseCase from "../domain/use-cases/storm/GetTrackedStormsUseCase.js";
 import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
@@ -29,6 +30,7 @@ import { getCacheStatus } from "../domain/cacheStatus.js";
 import formatResponseData from "./formatResponseData.js";
 import formatStormTrackResponse from "./formatStormTrackResponse.js";
 import formatStormSummaryResponse from "./formatStormSummaryResponse.js";
+import formatTrackedStormResponse from "./formatTrackedStormResponse.js";
 import RateLimiter from "./RateLimiter.js";
 
 export { Server as default };
@@ -46,6 +48,7 @@ interface ServerUseCases {
     storm: {
         getActiveStorms: GetActiveStormsUseCase;
         getDemoStorms: GetDemoStormsUseCase;
+        getTrackedStorms: GetTrackedStormsUseCase;
         getStormTrack: GetStormTrackUseCase;
         getStormCone: GetStormConeUseCase;
         getStormSpaghetti: GetStormSpaghettiUseCase;
@@ -113,6 +116,7 @@ class Server {
         ["get", "/health", this._GET_health],
         ["get", "/v1/storms", this._GET_storms],
         ["get", "/v1/storms/demo", this._GET_demoStorms],
+        ["post", "/v1/storms/tracking", this._POST_trackedStorms],
         ["get", "/v1/weather/forecast", this._GET_forecastWeather],
         ["get", "/v1/weather/current", this._GET_currentWeather],
         ["get", "/v1/map-tiles/:layer/:z/:x/:y", this._GET_mapTile],
@@ -290,6 +294,14 @@ class Server {
         const data = await this._useCases.storm.getDemoStorms.execute();
 
         this._sendData(response, data.map(formatStormSummaryResponse), data);
+    }
+
+    private async _POST_trackedStorms (request: Request, response: Response): Promise<void> {
+        const data = await this._useCases.storm.getTrackedStorms.execute({
+            stormIds: readStormIds(readJsonObject(request)),
+        });
+
+        this._sendData(response, data.map(formatTrackedStormResponse), data);
     }
 
     private async _GET_forecastWeather (request: Request, response: Response): Promise<void> {
@@ -504,6 +516,21 @@ function readStormId (body: Record<string, unknown>): string {
     }
 
     return stormId;
+}
+
+function readStormIds (body: Record<string, unknown>): string[] {
+    const stormIds = body.stormIds;
+
+    if (
+        !Array.isArray(stormIds)
+        || stormIds.length === 0
+        || stormIds.length > 20
+        || stormIds.some((stormId) => typeof stormId !== "string" || !isTrackStormId(stormId))
+    ) {
+        throw new ClientError("Field 'stormIds' must be an array containing 1 to 20 valid storm IDs.");
+    }
+
+    return stormIds;
 }
 
 function readCoordinateField (body: Record<string, unknown>, name: string, min: number, max: number): number {

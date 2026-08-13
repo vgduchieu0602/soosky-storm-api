@@ -31,6 +31,7 @@ import MapTileRepository from "../src/domain/repositories/IMapTileRepository.js"
 import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
 import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
 import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
+import GetTrackedStormsUseCase from "../src/domain/use-cases/storm/GetTrackedStormsUseCase.js";
 import GetHistoricalStormTrackUseCase from "../src/domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
 import GetStormSpaghettiUseCase from "../src/domain/use-cases/storm/GetStormSpaghettiUseCase.js";
@@ -611,7 +612,7 @@ test("GET /v1/storms returns active NHC storms", async () => {
         ok: true,
         data: [{
             ...stormRepository.summary,
-            area: "Eastern North Pacific Ocean",
+            area: "PO",
             message: null,
         }],
         cacheStatus: "bypass",
@@ -637,10 +638,11 @@ test("GET /v1/storms returns every provider's storms when no region is given", a
         ok: true,
         data: [{
             ...stormRepository.summary,
-            area: "Eastern North Pacific Ocean",
+            area: "PO",
             message: null,
         }, {
             ...stormRepository.gdacsSummary,
+            area: "PO",
             message: "Extreme danger. Leave immediately if ordered.",
         }],
         cacheStatus: "bypass",
@@ -659,15 +661,77 @@ test("GET /v1/storms includes each active storm's area and safety message", asyn
     })), [
         {
             stormId: "nhc:EP072026",
-            area: "Eastern North Pacific Ocean",
+            area: "PO",
             message: null,
         },
         {
             stormId: "gdacs:TC:1001297:51",
-            area: "Marshall Islands, Japan, China",
+            area: "PO",
             message: "Extreme danger. Leave immediately if ordered.",
         },
     ]);
+});
+
+test("POST /v1/storms/tracking resolves active and dissipated storm cards in one request", async () => {
+    const response = await fetch(baseUrl + "/v1/storms/tracking", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            stormIds: ["gdacs:TC:1001297:50", "nhc:EP072025"],
+        }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+        ok: true,
+        data: [{
+            requestedStormId: "gdacs:TC:1001297:50",
+            trackingId: "gdacs:TC:1001297",
+            stormId: "gdacs:TC:1001297:51",
+            name: "DOLPHIN-26",
+            source: "gdacs",
+            area: "PO",
+            status: "active",
+            category: 5,
+            message: "Extreme danger. Leave immediately if ordered.",
+            lat: 27,
+            lon: 124.8,
+            updatedAt: "2026-08-08T12:00:00.000Z",
+            endedAt: null,
+        }, {
+            requestedStormId: "nhc:EP072025",
+            trackingId: "nhc:EP072025",
+            stormId: "nhc:EP072025",
+            name: "EP072025",
+            source: "nhc",
+            area: "PO",
+            status: "dissipated",
+            category: 1,
+            message: "Secure loose items, check emergency supplies now",
+            lat: 15,
+            lon: -120,
+            updatedAt: "2025-08-03T00:00:00.000Z",
+            endedAt: "2025-08-03T00:00:00.000Z",
+        }],
+        cacheStatus: "bypass",
+    });
+});
+
+test("POST /v1/storms/tracking rejects an empty or malformed storm ID list", async () => {
+    for (const stormIds of [[], ["not-a-storm"]]) {
+        const response = await fetch(baseUrl + "/v1/storms/tracking", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stormIds }),
+        });
+
+        assert.equal(response.status, 400);
+        assert.deepEqual(await response.json(), {
+            ok: false,
+            code: "BAD_REQUEST",
+            reason: "Field 'stormIds' must be an array containing 1 to 20 valid storm IDs.",
+        });
+    }
 });
 
 test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
@@ -678,6 +742,7 @@ test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
         ok: true,
         data: [{
             ...stormRepository.gdacsSummary,
+            area: "PO",
             message: "Extreme danger. Leave immediately if ordered.",
         }],
         cacheStatus: "bypass",
@@ -833,7 +898,7 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
             stormId: "nhc:EP072026",
             name: "Genevieve",
             source: "nhc",
-            area: "Eastern North Pacific Ocean",
+            area: "PO",
             issuedAt: "2026-07-31T21:00:00.000Z",
             cachedUntil: "2026-07-31T23:00:00.000Z",
             category: 2,
@@ -876,7 +941,7 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
             stormId: "gdacs:TC:1001297:51",
             name: "DOLPHIN-26",
             source: "gdacs",
-            area: "Marshall Islands, Japan, China",
+            area: "PO",
             issuedAt: "2026-08-08T16:50:16.000Z",
             cachedUntil: null,
             category: null,
@@ -1853,6 +1918,7 @@ function createUseCases (
         storm: {
             getActiveStorms: new GetActiveStormsUseCase(repository),
             getDemoStorms: new GetDemoStormsUseCase(historicalStormTrack),
+            getTrackedStorms: new GetTrackedStormsUseCase(repository, historicalStormTrack),
             getStormTrack: new GetStormTrackUseCase(repository),
             getStormCone: new GetStormConeUseCase(repository),
             getStormSpaghetti: new GetStormSpaghettiUseCase(spaghetti),

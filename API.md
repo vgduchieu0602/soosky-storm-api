@@ -137,7 +137,7 @@ Danh sách bão đang hoạt động.
 | `name` | string | — | |
 | `source` | `"nhc"` \| `"gdacs"` | — | |
 | `basin` | string \| null | — | `null` với GDACS |
-| `area` | string \| null | — | NHC: vùng biển cụ thể theo basin. GDACS: các quốc gia/khu vực bị ảnh hưởng từ provider. |
+| `area` | `"PO"` \| `"AO"` \| `"IO"` \| `"SO"` \| `"AR"` | — | Vùng đại dương chuẩn hoá theo vị trí bão. |
 | `lat` | number | độ | Vị trí tâm bão |
 | `lon` | number | độ | |
 | `datetime` | string | ISO UTC | Thời điểm của vị trí này |
@@ -150,7 +150,7 @@ Danh sách bão đang hoạt động.
 { "ok": true, 
   "data": [
   { "stormId": "gdacs:TC:1001297:55", "name": "DOLPHIN-26", "source": "gdacs",
-    "basin": null, "area": "Marshall Islands, Japan, China", "lat": 27.9, "lon": 120.6,
+    "basin": null, "area": "PO", "lat": 27.9, "lon": 120.6,
     "datetime": "2026-08-09T12:00:00.000Z",
     "windSpeed": 145, "category": "category_5",
     "message": "Extreme danger. Leave immediately if ordered.", "alertLevel": "Orange" }
@@ -159,7 +159,63 @@ Danh sách bão đang hoạt động.
 
 `data: []` là **hợp lệ** khi không có bão nào. Rất thường gặp với `region=us-nhc` ngoài mùa bão Atlantic.
 
+| Code | Khu vực |
+| --- | --- |
+| `PO` | Pacific Ocean |
+| `AO` | Atlantic Ocean |
+| `IO` | Indian Ocean |
+| `SO` | Southern Ocean |
+| `AR` | Arctic Region |
+
 **Lỗi:** 400 khi `region` sai · 502 khi **tất cả** provider lỗi.
+
+---
+
+## `POST /v1/storms/tracking`
+
+Trả dữ liệu card cho màn hình **Saved Storms**. FE tự lưu danh sách yêu thích và gửi các `stormId` cần hiển thị trong một request; API không lưu trạng thái follow theo thiết bị.
+
+**Input (JSON body):**
+
+```json
+{ "stormIds": ["gdacs:TC:1001297:50", "nhc:EP072025"] }
+```
+
+`stormIds` bắt buộc có từ 1 đến 20 ID NHC hoặc GDACS hợp lệ. Thứ tự mảng `data` giữ nguyên thứ tự FE gửi.
+
+**Output 200:** `data` là mảng card:
+
+| Field | Kiểu | Ghi chú |
+| --- | --- | --- |
+| `requestedStormId` | string | ID FE đã gửi, dùng để đối chiếu item đã lưu. |
+| `trackingId` | string | ID ổn định; GDACS bỏ `episodeId` cuối để nhận diện cùng một event. |
+| `stormId` | string | ID hiện hành; với GDACS active có thể là episode mới hơn ID FE đã lưu. |
+| `name`, `source` | string | Thông tin hiển thị card. |
+| `area` | `"PO"` \| `"AO"` \| `"IO"` \| `"SO"` \| `"AR"` | Vùng đại dương chuẩn hoá theo vị trí mới nhất. |
+| `status` | `"active"` \| `"dissipated"` | `active` nếu còn trong danh sách bão đang hoạt động; ngược lại tra historical track. |
+| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | Cường độ mới nhất. |
+| `message` | string / null | Khuyến nghị an toàn tương ứng `category`. |
+| `lat`, `lon`, `updatedAt` | number, string ISO UTC | Vị trí/thời điểm mới nhất. |
+| `endedAt` | string ISO UTC \| null | `null` khi active; với historical là thời điểm quan sát chính thức cuối cùng, không phải thời điểm tan chính xác. |
+
+```json
+{ "ok": true,
+  "data": [
+    { "requestedStormId": "gdacs:TC:1001297:50", "trackingId": "gdacs:TC:1001297",
+      "stormId": "gdacs:TC:1001297:51", "name": "DOLPHIN-26", "source": "gdacs",
+      "area": "PO", "status": "active", "category": 5,
+      "message": "Extreme danger. Leave immediately if ordered.", "lat": 27, "lon": 124.8,
+      "updatedAt": "2026-08-08T12:00:00.000Z", "endedAt": null },
+    { "requestedStormId": "nhc:EP072025", "trackingId": "nhc:EP072025",
+      "stormId": "nhc:EP072025", "name": "EP072025", "source": "nhc",
+      "area": "PO", "status": "dissipated", "category": 1,
+      "message": "Secure loose items, check emergency supplies now", "lat": 15, "lon": -120,
+      "updatedAt": "2025-08-03T00:00:00.000Z", "endedAt": "2025-08-03T00:00:00.000Z" }
+  ]
+}
+```
+
+**Lỗi:** 400 khi `stormIds` rỗng, quá 20 phần tử hoặc chứa ID sai; 404 khi bất kỳ ID nào không thể tra cứu; 502 khi provider lỗi.
 
 ---
 
@@ -175,7 +231,7 @@ Danh sách bão đang hoạt động.
 | --- | --- | --- |
 | `stormId`, `name` | string | |
 | `source` | `"nhc"` \| `"gdacs"` | |
-| `area` | string \| null | Khu vực bị ảnh hưởng: NHC trả tên basin (`North Atlantic Ocean`, `Eastern North Pacific Ocean`, `Central North Pacific Ocean`); GDACS lấy trực tiếp từ trường `country` của event. |
+| `area` | `"PO"` \| `"AO"` \| `"IO"` \| `"SO"` \| `"AR"` | Vùng đại dương chuẩn hoá theo vị trí observed/forecast mới nhất. |
 | `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | Cường độ hiện tại từ điểm observed mới nhất. `null` nếu chỉ là áp thấp/bão nhiệt đới hoặc provider không có cường độ. |
 | `message` | string \| null | Khuyến nghị an toàn tương ứng `category`; `null` khi category là `null`. |
 | `issuedAt` | string ISO UTC | Thời điểm bản tin |
@@ -198,7 +254,7 @@ Mỗi điểm trong `observed` / `forecast`:
 { "ok": true, 
 "data": {
   "stormId": "nhc:AL092025", "name": "Imelda", "source": "nhc",
-  "area": "North Atlantic Ocean", "category": 1,
+  "area": "AO", "category": 1,
   "message": "Secure loose items, check emergency supplies now",
   "issuedAt": "2025-09-30T00:00:00.000Z",
   "cachedUntil": "2025-09-30T02:00:00.000Z",
@@ -214,7 +270,7 @@ Mỗi điểm trong `observed` / `forecast`:
 } }
 ```
 
-> **Với GDACS:** các điểm không có cường độ tại thời điểm đó trả `windSpeed: null`, `category: null`, `message: null`. Top-level `area` lấy trực tiếp từ trường `country` của GDACS.
+> **Với GDACS:** các điểm không có cường độ tại thời điểm đó trả `windSpeed: null`, `category: null`, `message: null`. Top-level `area` luôn là một trong 5 mã vùng chuẩn hoá, không phải danh sách quốc gia từ GDACS.
 
 ### `message` theo `category`
 

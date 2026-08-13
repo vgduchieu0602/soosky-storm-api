@@ -1,9 +1,10 @@
 import StormTrack, { StormTrackPoint } from "../domain/entities/StormTrack.js";
+import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatStormTrackResponse as default };
 
 interface StormTrackResponse extends Omit<StormTrack, "area" | "observed" | "forecast"> {
-    area: string | null;
+    area: StormArea;
     category: StormCategoryLevel | null;
     message: string | null;
     observed: StormTrackPointResponse[];
@@ -32,7 +33,11 @@ function formatStormTrackResponse (track: StormTrack): StormTrackResponse {
 
     return {
         ...track,
-        area: track.area ?? getNhcArea(track.stormId),
+        area: getStormArea({
+            stormId: track.stormId,
+            lat: current?.lat ?? 0,
+            lon: current?.lon ?? 0,
+        }),
         category: current?.category ?? null,
         message: current?.message ?? null,
         observed,
@@ -57,15 +62,6 @@ function toCategoryLevel (category: StormTrackPoint["category"]): StormCategoryL
         case "category_3": return 3;
         case "category_4": return 4;
         case "category_5": return 5;
-        default: return null;
-    }
-}
-
-function getNhcArea (stormId: string): string | null {
-    switch (stormId.slice(4, 6)) {
-        case "AL": return "North Atlantic Ocean";
-        case "EP": return "Eastern North Pacific Ocean";
-        case "CP": return "Central North Pacific Ocean";
         default: return null;
     }
 }
