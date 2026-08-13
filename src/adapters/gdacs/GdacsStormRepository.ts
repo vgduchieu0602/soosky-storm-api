@@ -19,6 +19,7 @@ interface GdacsEvent {
     eventId: string;
     episodeId: string;
     name: string;
+    area: string | null;
     startTimestamp: number;
     currentTimestamp: number;
     issuedAt: string;
@@ -64,6 +65,7 @@ class GdacsStormRepository implements ActiveStormsRepository, StormTrackReposito
             stormId,
             name: event.name,
             source: "gdacs",
+            area: event.area,
             issuedAt: event.issuedAt,
             cachedUntil: null,
             observed: observed.length ? observed.map(toObservedPoint) : [toCurrentPoint(event)],
@@ -184,6 +186,7 @@ function toGdacsEvent (payload: unknown, eventId: string, episodeId: string): Gd
         eventId,
         episodeId,
         name: readEventName(properties) ?? "TC " + eventId,
+        area: readArea(properties.country),
         startTimestamp,
         currentTimestamp,
         issuedAt: new Date(readGdacsTimestamp(properties.datemodified) ?? currentTimestamp).toISOString(),
@@ -290,6 +293,11 @@ function readEventName (properties: Record<string, unknown>): string | null {
 
     return null;
 }
+
+function readArea (value: unknown): string | null {
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 
 /**
  * GDACS publishes one intensity per event: the maximum sustained wind in km/h.

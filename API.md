@@ -150,8 +150,11 @@ Danh sách bão đang hoạt động.
 | --- | --- | --- |
 | `stormId`, `name` | string | |
 | `source` | `"nhc"` \| `"gdacs"` | |
+| `area` | string \| null | Khu vực bị ảnh hưởng: NHC trả tên basin (`North Atlantic Ocean`, `Eastern North Pacific Ocean`, `Central North Pacific Ocean`); GDACS lấy trực tiếp từ trường `country` của event. |
+| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | Cường độ hiện tại từ điểm observed mới nhất. `null` nếu chỉ là áp thấp/bão nhiệt đới hoặc provider không có cường độ. |
+| `message` | string \| null | Khuyến nghị an toàn tương ứng `category`; `null` khi category là `null`. |
 | `issuedAt` | string ISO UTC | Thời điểm bản tin |
-| `cachedUntil` | string ISO UTC \| null | Cache 2 giờ |
+| `cachedUntil` | string ISO UTC \| null | Cache 10 phút (tạm thời cho giai đoạn test) |
 | `observed` | array | Điểm đã quan sát |
 | `forecast` | array | Điểm dự báo |
 
@@ -162,27 +165,41 @@ Mỗi điểm trong `observed` / `forecast`:
 | `lat`, `lon` | number | độ |
 | `datetime` | string | ISO UTC |
 | `windSpeed` | number \| null | **knot** |
-| `category` | string | — |
+| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | `null` nếu chưa đạt hurricane Category 1 hoặc provider không có cường độ |
+| `message` | string \| null | Khuyến nghị an toàn tương ứng category |
 | `forecastHour` | number | **giờ** kể từ `issuedAt` — **chỉ có trong `forecast`** |
 
 ```json
 { "ok": true, 
 "data": {
   "stormId": "nhc:AL092025", "name": "Imelda", "source": "nhc",
+  "area": "North Atlantic Ocean", "category": 1,
+  "message": "Secure loose items, check emergency supplies now",
   "issuedAt": "2025-09-30T00:00:00.000Z",
   "cachedUntil": "2025-09-30T02:00:00.000Z",
   "observed": [
     { "lat": 27.4, "lon": -78.2, "datetime": "2025-09-30T00:00:00.000Z",
-      "windSpeed": 55, "category": "tropical_storm" }
+      "windSpeed": 55, "category": null, "message": null }
   ],
   "forecast": [
     { "lat": 29.1, "lon": -77.0, "datetime": "2025-09-30T12:00:00.000Z",
-      "forecastHour": 12, "windSpeed": 65, "category": "category_1" }
+      "forecastHour": 12, "windSpeed": 65, "category": 1,
+      "message": "Secure loose items, check emergency supplies now" }
   ]
 } }
 ```
 
-> **Với GDACS:** mọi điểm có `windSpeed: null` và `category: "unknown"` — GDACS không publish cường độ theo từng thời điểm. FE nên ẩn phần cường độ khi `source === "gdacs"`.
+> **Với GDACS:** các điểm không có cường độ tại thời điểm đó trả `windSpeed: null`, `category: null`, `message: null`. Top-level `area` lấy trực tiếp từ trường `country` của GDACS.
+
+### `message` theo `category`
+
+| Category | Message |
+| --- | --- |
+| `1` | Secure loose items, check emergency supplies now |
+| `2` | Review evacuation route. Power outages likely |
+| `3` | Major hurricane. Follow evacuation orders if issued |
+| `4` | Catastrophic winds. Evacuate now if advised. |
+| `5` | Extreme danger. Leave immediately if ordered. |
 
 **Lỗi:** 400 `stormId` sai định dạng · 404 không có bão · 502 provider lỗi.
 
@@ -204,7 +221,7 @@ Mỗi điểm trong `observed` / `forecast`:
 | `availability` | `"available"` \| `"not_available"` | |
 | `reason` | string | Chỉ xuất hiện khi `not_available` |
 | `history` | array | Sort **tăng dần** theo `datetime` |
-| `cachedUntil` | string ISO UTC \| null | Cache 2 giờ |
+| `cachedUntil` | string ISO UTC \| null | Cache 10 phút (tạm thời cho giai đoạn test) |
 
 Mỗi điểm `history`: `lat`, `lon` (độ), `datetime` (ISO UTC), `windSpeed` (**knot** \| null), `category`.
 
@@ -240,7 +257,7 @@ Vùng dự báo (cone) NHC, hoặc vùng ảnh hưởng GDACS.
 | `availability` | `"available"`         \| `"not_available"` \| `"not_supported"` | |
 | `geometryKind` | `"forecast_cone"`     \| `"gdacs_event_area"` \| null | `gdacs_event_area` **không** phải cone dự báo chính thức |
 | `geojson`      | GeoJSON               \| null | `Feature` (NHC) hoặc `FeatureCollection` (GDACS) |
-| `issuedAt`, `cachedUntil` | string ISO UTC \| null | Cache 2 giờ |
+| `issuedAt`, `cachedUntil` | string ISO UTC \| null | Cache 10 phút (tạm thời cho giai đoạn test) |
 | `reason` | string | Khi không available |
 
 `not_supported` = basin NHC ngoài AL/EP/CP. **Vẫn trả 200.**
@@ -340,7 +357,7 @@ Dự báo theo giờ và theo ngày.
 | Field | Kiểu | Ghi chú |
 | --- | --- | --- |
 | `location`, `units` | object | Như mục 7 |
-| `cachedUntil` | string \| null | ISO UTC (cache 24 giờ) |
+| `cachedUntil` | string \| null | ISO UTC (cache 20 phút — tạm thời cho giai đoạn test) |
 | `hourly` | array | **~48 điểm**, mỗi điểm cách 1 giờ |
 | `daily` | array | **10 điểm**, mỗi điểm 1 ngày |
 
@@ -377,7 +394,7 @@ Tile ảnh bản đồ. **Trả PNG, không phải JSON.**
 | `x` | Số nguyên `0 … 2^z − 1` | z=2 → 0…3 · z=7 → 0…127 |
 | `y` | Số nguyên `0 … 2^z − 1` | |
 
-**Output 200:** body là ảnh, header `Content-Type: image/png`. Cache 12 giờ.
+**Output 200:** body là ảnh, header `Content-Type: image/png`. Cache 10 phút (tạm thời cho giai đoạn test).
 
 FE dùng trực tiếp URL này làm tile source:
 

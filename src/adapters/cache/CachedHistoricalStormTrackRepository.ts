@@ -9,7 +9,6 @@ interface CacheLimits {
     maxBytes: number;
 }
 
-const HISTORICAL_STORM_TRACK_CACHE_TTL_MS = 7_200_000;
 const DEFAULT_CACHE_LIMITS: CacheLimits = { maxEntries: 200, maxBytes: 16 * 1024 * 1024 };
 
 class CachedHistoricalStormTrackRepository implements HistoricalStormTrackRepository {
@@ -17,6 +16,7 @@ class CachedHistoricalStormTrackRepository implements HistoricalStormTrackReposi
 
     public constructor (
         private readonly _source: HistoricalStormTrackRepository,
+        private readonly _ttlMs: number,
         private readonly _now: () => number = Date.now,
         limits: CacheLimits = DEFAULT_CACHE_LIMITS,
     ) {
@@ -40,13 +40,13 @@ class CachedHistoricalStormTrackRepository implements HistoricalStormTrackReposi
             return track;
         }
 
-        const expiresAt = this._now() + HISTORICAL_STORM_TRACK_CACHE_TTL_MS;
+        const expiresAt = this._now() + this._ttlMs;
         const value: HistoricalStormTrack = {
             ...track,
             cachedUntil: new Date(expiresAt).toISOString(),
         };
 
-        this._tracks.set(stormId, value, HISTORICAL_STORM_TRACK_CACHE_TTL_MS);
+        this._tracks.set(stormId, value, this._ttlMs);
 
         return value;
     }

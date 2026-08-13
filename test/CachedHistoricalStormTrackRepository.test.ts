@@ -7,7 +7,7 @@ import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoric
 test("Historical storm track cache reuses an available result until the two-hour TTL expires", async () => {
     const source = new CountingHistoricalStormTrackRepository();
     let now = Date.parse("2026-08-04T00:00:00.000Z");
-    const repository = new CachedHistoricalStormTrackRepository(source, () => now);
+    const repository = new CachedHistoricalStormTrackRepository(source, 7_200_000, () => now);
 
     const first = await repository.getHistoricalStormTrack("nhc:EP072026");
     const second = await repository.getHistoricalStormTrack("nhc:EP072026");
@@ -25,7 +25,11 @@ test("Historical storm track cache reuses an available result until the two-hour
 
 test("Historical storm track cache does not store unavailable results", async () => {
     const source = new CountingHistoricalStormTrackRepository("not_available");
-    const repository = new CachedHistoricalStormTrackRepository(source, () => Date.parse("2026-08-04T00:00:00.000Z"));
+    const repository = new CachedHistoricalStormTrackRepository(
+        source,
+        7_200_000,
+        () => Date.parse("2026-08-04T00:00:00.000Z"),
+    );
 
     const first = await repository.getHistoricalStormTrack("nhc:EP072026");
     const second = await repository.getHistoricalStormTrack("nhc:EP072026");
@@ -40,7 +44,7 @@ test("Historical storm track cache starts its TTL after a delayed source respons
     const source = new DelayedHistoricalStormTrackRepository(() => {
         now = Date.parse("2026-08-04T01:00:00.000Z");
     });
-    const repository = new CachedHistoricalStormTrackRepository(source, () => now);
+    const repository = new CachedHistoricalStormTrackRepository(source, 7_200_000, () => now);
 
     const track = await repository.getHistoricalStormTrack("nhc:EP072026");
 
@@ -49,7 +53,10 @@ test("Historical storm track cache starts its TTL after a delayed source respons
 
 test("Historical storm track cache refreshes the least recently used storm when capacity is reached", async () => {
     const source = new CountingHistoricalStormTrackRepository();
-    const repository = new CachedHistoricalStormTrackRepository(source, Date.now, { maxEntries: 1, maxBytes: 10_000 });
+    const repository = new CachedHistoricalStormTrackRepository(source, 7_200_000, Date.now, {
+        maxEntries: 1,
+        maxBytes: 10_000,
+    });
 
     await repository.getHistoricalStormTrack("nhc:EP072026");
     await repository.getHistoricalStormTrack("nhc:EP082026");

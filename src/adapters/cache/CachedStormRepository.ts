@@ -11,8 +11,6 @@ interface CachedActiveStorms {
     value: StormSummary[];
 }
 
-const ACTIVE_STORMS_CACHE_TTL_MS = 3_600_000;
-
 interface CacheLimits {
     maxEntries: number;
     maxBytes: number;
@@ -36,6 +34,7 @@ class CachedStormRepository implements StormRepository {
     public constructor (
         private readonly _source: StormRepository,
         private readonly _ttlMs: number,
+        private readonly _activeStormsTtlMs: number,
         private readonly _now: () => number = Date.now,
         limits: StormCacheLimits = DEFAULT_CACHE_LIMITS,
     ) {
@@ -61,7 +60,7 @@ class CachedStormRepository implements StormRepository {
         const value = await this._source.getActiveStorms();
 
         this._activeStorms = {
-            expiresAt: now + ACTIVE_STORMS_CACHE_TTL_MS,
+            expiresAt: now + this._activeStormsTtlMs,
             value,
         };
 

@@ -26,6 +26,7 @@ import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/Save
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import ClientError from "./ClientError.js";
 import formatResponseData from "./formatResponseData.js";
+import formatStormTrackResponse from "./formatStormTrackResponse.js";
 import RateLimiter from "./RateLimiter.js";
 
 export { Server as default };
@@ -398,7 +399,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormTrack.execute({ stormId });
 
-        response.json({ ok: true, data });
+        response.json({ ok: true, data: formatStormTrackResponse(data) });
     }
 
     private async _GET_stormCone (request: Request, response: Response): Promise<void> {

@@ -25,11 +25,11 @@ const CATEGORY_LABELS: Readonly<Record<string, string>> = {
  * generation of any kind: edit this table to change what users are told.
  */
 const CATEGORY_SAFETY_MESSAGES: Readonly<Partial<Record<StormCategory, string>>> = {
-    category_1: "Secure loose outdoor items and stay away from the shoreline.",
-    category_2: "Expect power outages. Prepare water, food and a charged phone.",
-    category_3: "Dangerous storm. Protect windows and be ready to move inland.",
-    category_4: "Severe danger. Follow local evacuation orders without delay.",
-    category_5: "Catastrophic danger. Evacuate now if authorities tell you to.",
+    category_1: "Secure loose items, check emergency supplies now",
+    category_2: "Review evacuation route. Power outages likely",
+    category_3: "Major hurricane. Follow evacuation orders if issued",
+    category_4: "Catastrophic winds. Evacuate now if advised.",
+    category_5: "Extreme danger. Leave immediately if ordered.",
 };
 
 const KNOTS_TO_KM_PER_HOUR = 1.852;

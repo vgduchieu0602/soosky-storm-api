@@ -210,6 +210,7 @@ test("Cached composite repository caches GDACS geometry for two hours only when 
     const repository = new CachedStormRepository(
         new CompositeStormRepository(new CountingNhcStormRepository(), gdacs),
         7_200_000,
+        3_600_000,
         () => now,
     );
 

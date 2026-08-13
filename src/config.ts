@@ -14,6 +14,15 @@ dotenv.config({
     override: false,
 });
 
+// TAM THOI (giai doan tester): moi TTL cache deu ha xuong 10 phut.
+// Doi lai gia tri production sau khi test xong:
+//   stormTtlMs 7_200_000 | activeStormsTtlMs 3_600_000 | historicalStormTrackTtlMs 7_200_000
+//   forecastWeatherTtlMs 86_400_000 (tester: 20 phut) | mapTileTtlMs 43_200_000 | radarTtlMs 43_200_000
+//   currentWeatherTtlMs 600_000
+const TESTING_CACHE_TTL_MS = 600_000;
+// Forecast 10 ngay doi cham hon quan trac: tester dung 20 phut thay vi 10.
+const TESTING_FORECAST_CACHE_TTL_MS = 1_200_000;
+
 const config = {
     http: {
         port: readPositiveInt("HTTP_PORT", 3000),
@@ -27,7 +36,15 @@ const config = {
         currentStormsUrl: process.env.NHC_CURRENT_STORMS_URL || "https://www.nhc.noaa.gov/CurrentStorms.json",
         aidPublicUrl: process.env.NHC_ATCF_AID_PUBLIC_URL || "https://ftp.nhc.noaa.gov/atcf/aid_public",
         archiveUrl: process.env.NHC_ATCF_ARCHIVE_URL || "https://ftp.nhc.noaa.gov/atcf/archive",
-        cacheTtlMs: readPositiveInt("NHC_CACHE_TTL_MS", 7_200_000),
+    },
+    cache: {
+        stormTtlMs: readPositiveInt("NHC_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        activeStormsTtlMs: readPositiveInt("ACTIVE_STORMS_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        historicalStormTrackTtlMs: readPositiveInt("HISTORICAL_STORM_TRACK_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        forecastWeatherTtlMs: readPositiveInt("FORECAST_WEATHER_CACHE_TTL_MS", TESTING_FORECAST_CACHE_TTL_MS),
+        currentWeatherTtlMs: readPositiveInt("CURRENT_WEATHER_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        mapTileTtlMs: readPositiveInt("MAP_TILE_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
+        radarTtlMs: readPositiveInt("RADAR_CACHE_TTL_MS", TESTING_CACHE_TTL_MS),
     },
     gdacs: {
         geometryUrl: process.env.GDACS_GEOMETRY_URL || "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry",

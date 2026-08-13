@@ -1,0 +1,110 @@
+{
+  "info": {
+    "_postman_id": "364c0e8d-4dcb-4e76-923c-b13124767827",
+    "name": "Soosky Storm API - Cone not_available mock",
+    "description": "Collection de fake deterministic truong hop cone not_available.\n\nCach dung:\n1. Import collection nay vao Postman.\n2. Tao Mock Server tu collection va chon Public. Request 'NHC source mock > CurrentStorms.json (response fake)' da co response example.\n3. Copy URL Mock Server, sau do dat tren backend: NHC_CURRENT_STORMS_URL=<mock-url>/CurrentStorms.json.\n4. Restart backend: docker compose restart api.\n5. Chay request 'Backend verification > Cone is not_available'.\n\nMock co storm nhc:AL052025 ton tai trong activeStorms, nhung co y khong co trackCone. Vi vay backend phai tra 200 va data.availability = not_available. Postman khong the tu thay doi bien moi truong cua backend; buoc 3 phai thuc hien trong file .env cua backend dang chay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3001",
+      "type": "string"
+    },
+    {
+      "key": "stormId",
+      "value": "nhc:AL052025",
+      "type": "string"
+    },
+    {
+      "key": "mockBaseUrl",
+      "value": "https://your-mock-server.mock.pstmn.io",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "NHC source mock",
+      "description": "Tao Postman Mock Server tu collection nay. Mock Server can public de backend co the goi ma khong can x-api-key.",
+      "item": [
+        {
+          "name": "CurrentStorms.json (response fake)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mockBaseUrl}}/CurrentStorms.json",
+            "description": "Response example ben duoi la du lieu ma backend can doc. Storm co forecastTrack bat buoc, nhung khong co trackCone."
+          },
+          "response": [
+            {
+              "name": "200 - active storm without cone",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{mockBaseUrl}}/CurrentStorms.json",
+                  "host": [
+                    "{{mockBaseUrl}}"
+                  ],
+                  "path": [
+                    "CurrentStorms.json"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"activeStorms\": [\n    {\n      \"id\": \"al052025\",\n      \"name\": \"Test Storm\",\n      \"classification\": \"TS\",\n      \"intensity\": \"50\",\n      \"latitudeNumeric\": 22.3,\n      \"longitudeNumeric\": -70.2,\n      \"lastUpdate\": \"2025-09-01T00:00:00.000Z\",\n      \"forecastTrack\": {\n        \"issuance\": \"2025-09-01T00:00:00.000Z\",\n        \"kmzFile\": \"https://example.test/track.kmz\"\n      }\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Backend verification",
+      "item": [
+        {
+          "name": "Cone is not_available",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns HTTP 200', () => pm.expect(pm.response.code).to.equal(200));",
+                  "pm.test('returns success envelope', () => pm.expect(body.ok).to.equal(true));",
+                  "pm.test('cone availability is not_available', () => pm.expect(body.data.availability).to.equal('not_available'));",
+                  "pm.test('cone has no geometry', () => {",
+                  "    pm.expect(body.data.geometryKind).to.equal(null);",
+                  "    pm.expect(body.data.geojson).to.equal(null);",
+                  "});",
+                  "pm.test('includes a reason', () => pm.expect(body.data.reason).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/storms/{{stormId}}/cone",
+            "description": "Chay sau khi backend da duoc cau hinh NHC_CURRENT_STORMS_URL tro toi Postman Mock Server."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

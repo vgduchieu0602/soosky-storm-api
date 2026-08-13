@@ -54,7 +54,15 @@ const {
         currentStormsUrl: NHC_CURRENT_STORMS_URL,
         aidPublicUrl: NHC_ATCF_AID_PUBLIC_URL,
         archiveUrl: NHC_ATCF_ARCHIVE_URL,
-        cacheTtlMs: NHC_CACHE_TTL_MS,
+    },
+    cache: {
+        stormTtlMs: STORM_CACHE_TTL_MS,
+        activeStormsTtlMs: ACTIVE_STORMS_CACHE_TTL_MS,
+        historicalStormTrackTtlMs: HISTORICAL_STORM_TRACK_CACHE_TTL_MS,
+        forecastWeatherTtlMs: FORECAST_WEATHER_CACHE_TTL_MS,
+        currentWeatherTtlMs: CURRENT_WEATHER_CACHE_TTL_MS,
+        mapTileTtlMs: MAP_TILE_CACHE_TTL_MS,
+        radarTtlMs: RADAR_CACHE_TTL_MS,
     },
     gdacs: {
         geometryUrl: GDACS_GEOMETRY_URL,
@@ -78,14 +86,13 @@ const sourceStormRepository = new CompositeStormRepository(
     gdacsStormConeRepository,
     gdacsStormRepository,
 );
-const stormRepository = new CachedStormRepository(sourceStormRepository, NHC_CACHE_TTL_MS);
+const stormRepository = new CachedStormRepository(
+    sourceStormRepository,
+    STORM_CACHE_TTL_MS,
+    ACTIVE_STORMS_CACHE_TTL_MS,
+);
 const nhcSpaghettiRepository = new NhcSpaghettiRepository(NHC_ATCF_AID_PUBLIC_URL);
-const spaghettiRepository = new CachedSpaghettiRepository(nhcSpaghettiRepository, NHC_CACHE_TTL_MS);
-const FORECAST_WEATHER_CACHE_TTL_MS = 86_400_000;
-const MAP_TILE_CACHE_TTL_MS = 43_200_000;
-const RADAR_CACHE_TTL_MS = 43_200_000;
-// Observed conditions, not a forecast: a long TTL would serve a stale temperature.
-const CURRENT_WEATHER_CACHE_TTL_MS = 600_000;
+const spaghettiRepository = new CachedSpaghettiRepository(nhcSpaghettiRepository, STORM_CACHE_TTL_MS);
 
 const openWeatherForecastRepository = new OpenWeatherForecastRepository(OPENWEATHER_API_KEY);
 const forecastWeatherRepository = new CachedForecastWeatherRepository(
@@ -112,10 +119,11 @@ const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
         new NhcHistoricalStormTrackRepository(NHC_CURRENT_STORMS_URL, fetch, NHC_ATCF_ARCHIVE_URL),
         gdacsStormRepository,
     ),
+    HISTORICAL_STORM_TRACK_CACHE_TTL_MS,
 );
 const sendPushNotification = new SendPushNotificationUseCase(pushNotificationRepository);
 // Alerts read the uncached provider composite: detection latency must not be
-// bounded by the one-hour storm-list cache the HTTP endpoints use.
+// bounded by the storm-list cache the HTTP endpoints use.
 const detectStormAlerts = new DetectStormAlertsUseCase(
     sourceStormRepository,
     stormStateRepository,

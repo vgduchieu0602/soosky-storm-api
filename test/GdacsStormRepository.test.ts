@@ -134,6 +134,7 @@ test("GDACS storm repository splits the event geometry track into observed and f
         stormId: STORM_ID,
         name: "DOLPHIN-26",
         source: "gdacs",
+        area: "Marshall Islands, Japan, China",
         issuedAt: "2026-08-08T16:50:16.000Z",
         cachedUntil: null,
         observed: [

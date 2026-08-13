@@ -12,6 +12,7 @@ test("Storm Track cache reuses a normalized track until the two-hour TTL expires
     const repository = new CachedStormRepository(
         source,
         7_200_000,
+        3_600_000,
         () => now,
     );
 
@@ -32,7 +33,7 @@ test("Storm Track cache reuses a normalized track until the two-hour TTL expires
 test("Storm List cache reuses an active-storm list for one hour, including an empty list", async () => {
     const source = new CountingStormRepository();
     let now = Date.parse("2026-08-05T00:00:00.000Z");
-    const repository = new CachedStormRepository(source, 7_200_000, () => now);
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
 
     await repository.getActiveStorms();
     await repository.getActiveStorms();
@@ -56,6 +57,7 @@ test("Storm Cone cache reuses an available cone until the two-hour TTL expires",
     const repository = new CachedStormRepository(
         source,
         7_200_000,
+        3_600_000,
         () => now,
     );
 
@@ -75,7 +77,7 @@ test("Storm Cone cache reuses an available cone until the two-hour TTL expires",
 
 test("Storm caches refresh an older track and do not retain a cone larger than its byte budget", async () => {
     const source = new CountingStormRepository();
-    const repository = new CachedStormRepository(source, 7_200_000, Date.now, {
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, Date.now, {
         track: { maxEntries: 1, maxBytes: 10_000 },
         cone: { maxEntries: 1, maxBytes: 1 },
     });

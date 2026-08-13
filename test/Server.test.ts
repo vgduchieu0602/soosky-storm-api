@@ -86,7 +86,13 @@ class TestStormRepository implements StormRepository {
         source: "nhc",
         issuedAt: "2026-07-31T21:00:00.000Z",
         cachedUntil: "2026-07-31T23:00:00.000Z",
-        observed: [],
+        observed: [{
+            lat: 22.3,
+            lon: -130.2,
+            datetime: "2026-07-31T21:00:00.000Z",
+            windSpeed: 90,
+            category: "category_2",
+        }],
         forecast: [],
     };
 
@@ -150,6 +156,7 @@ class TestStormRepository implements StormRepository {
         stormId: "gdacs:TC:1001297:51",
         name: "DOLPHIN-26",
         source: "gdacs",
+        area: "Marshall Islands, Japan, China",
         issuedAt: "2026-08-08T16:50:16.000Z",
         cachedUntil: null,
         observed: [{
@@ -747,7 +754,25 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
         ok: true,
-        data: stormRepository.track,
+        data: {
+            stormId: "nhc:EP072026",
+            name: "Genevieve",
+            source: "nhc",
+            area: "Eastern North Pacific Ocean",
+            issuedAt: "2026-07-31T21:00:00.000Z",
+            cachedUntil: "2026-07-31T23:00:00.000Z",
+            category: 2,
+            message: "Review evacuation route. Power outages likely",
+            observed: [{
+                lat: 22.3,
+                lon: -130.2,
+                datetime: "2026-07-31T21:00:00.000Z",
+                windSpeed: 90,
+                category: 2,
+                message: "Review evacuation route. Power outages likely",
+            }],
+            forecast: [],
+        },
     });
 });
 
@@ -757,8 +782,59 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
         ok: true,
-        data: stormRepository.gdacsTrack,
+        data: {
+            stormId: "gdacs:TC:1001297:51",
+            name: "DOLPHIN-26",
+            source: "gdacs",
+            area: "Marshall Islands, Japan, China",
+            issuedAt: "2026-08-08T16:50:16.000Z",
+            cachedUntil: null,
+            category: null,
+            message: null,
+            observed: [{
+                lat: 27,
+                lon: 124.8,
+                datetime: "2026-08-08T12:00:00.000Z",
+                windSpeed: null,
+                category: null,
+                message: null,
+            }],
+            forecast: [{
+                lat: 27.3,
+                lon: 123.5,
+                datetime: "2026-08-09T00:00:00.000Z",
+                windSpeed: null,
+                category: null,
+                message: null,
+                forecastHour: 12,
+            }],
+        },
     });
+});
+
+test("GET /v1/storms/:stormId/track maps every hurricane category to its safety message", async () => {
+    const original = stormRepository.track.observed[0]!;
+    const examples = [
+        ["category_1", 1, "Secure loose items, check emergency supplies now"],
+        ["category_2", 2, "Review evacuation route. Power outages likely"],
+        ["category_3", 3, "Major hurricane. Follow evacuation orders if issued"],
+        ["category_4", 4, "Catastrophic winds. Evacuate now if advised."],
+        ["category_5", 5, "Extreme danger. Leave immediately if ordered."],
+    ] as const;
+
+    try {
+        for (const [category, expectedCategory, expectedMessage] of examples) {
+            stormRepository.track.observed[0] = { ...original, category };
+
+            const response = await fetch(baseUrl + "/v1/storms/nhc:EP072026/track");
+            const payload = await response.json();
+
+            assert.equal(payload.data.category, expectedCategory);
+            assert.equal(payload.data.message, expectedMessage);
+        }
+    } finally {
+        stormRepository.track.observed[0] = original;
+    }
 });
 
 test("GET /v1/storms/:stormId/track rejects a malformed GDACS storm ID", async () => {

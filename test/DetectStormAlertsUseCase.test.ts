@@ -57,17 +57,24 @@ test("detects a category change and describes the new winds", async () => {
 
 test("appends the deterministic safety message for Category 1-5", async () => {
     const world = createWorld({ storms: [storm({})], followers: { [STORM_ID]: [FOLLOWER] } });
+    const examples = [
+        ["category_1", 70, "Secure loose items, check emergency supplies now"],
+        ["category_2", 90, "Review evacuation route. Power outages likely"],
+        ["category_3", 105, "Major hurricane. Follow evacuation orders if issued"],
+        ["category_4", 120, "Catastrophic winds. Evacuate now if advised."],
+        ["category_5", 140, "Extreme danger. Leave immediately if ordered."],
+    ] as const;
 
     await world.useCase.execute();
-    world.storms.storms = [storm({ windSpeed: 140, category: "category_5" })];
-    world.push.sent.length = 0;
 
-    await world.useCase.execute();
+    for (const [category, windSpeed, expectedMessage] of examples) {
+        world.storms.storms = [storm({ windSpeed, category })];
+        world.push.sent.length = 0;
 
-    assert.match(
-        world.push.sent[0]?.description ?? "",
-        /Catastrophic danger\. Evacuate now if authorities tell you to\./,
-    );
+        await world.useCase.execute();
+
+        assert.match(world.push.sent[0]?.description ?? "", new RegExp(expectedMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
 });
 
 test("detects a track change only after the heading turns far enough", async () => {
