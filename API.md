@@ -137,20 +137,23 @@ Danh sách bão đang hoạt động.
 | `name` | string | — | |
 | `source` | `"nhc"` \| `"gdacs"` | — | |
 | `basin` | string \| null | — | `null` với GDACS |
+| `area` | string \| null | — | NHC: vùng biển cụ thể theo basin. GDACS: các quốc gia/khu vực bị ảnh hưởng từ provider. |
 | `lat` | number | độ | Vị trí tâm bão |
 | `lon` | number | độ | |
 | `datetime` | string | ISO UTC | Thời điểm của vị trí này |
 | `windSpeed` | number \| null | **knot** | GDACS: là gió mạnh **nhất của cả event**, không phải hiện tại |
 | `category` | string | — | Xem bảng ngưỡng |
+| `message` | string \| null | — | Khuyến nghị an toàn theo Category 1–5; `null` nếu chưa đạt Category 1. |
 | `alertLevel` | string \| null | — | Chỉ GDACS có |
 
 ```json
 { "ok": true, 
   "data": [
   { "stormId": "gdacs:TC:1001297:55", "name": "DOLPHIN-26", "source": "gdacs",
-    "basin": null, "lat": 27.9, "lon": 120.6,
+    "basin": null, "area": "Marshall Islands, Japan, China", "lat": 27.9, "lon": 120.6,
     "datetime": "2026-08-09T12:00:00.000Z",
-    "windSpeed": 145, "category": "category_5", "alertLevel": "Orange" }
+    "windSpeed": 145, "category": "category_5",
+    "message": "Extreme danger. Leave immediately if ordered.", "alertLevel": "Orange" }
 ] }
 ```
 

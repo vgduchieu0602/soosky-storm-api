@@ -28,6 +28,7 @@ import ClientError from "./ClientError.js";
 import { getCacheStatus } from "../domain/cacheStatus.js";
 import formatResponseData from "./formatResponseData.js";
 import formatStormTrackResponse from "./formatStormTrackResponse.js";
+import formatStormSummaryResponse from "./formatStormSummaryResponse.js";
 import RateLimiter from "./RateLimiter.js";
 
 export { Server as default };
@@ -282,13 +283,13 @@ class Server {
             region === "all" ? {} : { source: REGION_SOURCES[region] },
         );
 
-        this._sendData(response, data);
+        this._sendData(response, data.map(formatStormSummaryResponse), data);
     }
 
     private async _GET_demoStorms (_request: Request, response: Response): Promise<void> {
         const data = await this._useCases.storm.getDemoStorms.execute();
 
-        this._sendData(response, data);
+        this._sendData(response, data.map(formatStormSummaryResponse), data);
     }
 
     private async _GET_forecastWeather (request: Request, response: Response): Promise<void> {

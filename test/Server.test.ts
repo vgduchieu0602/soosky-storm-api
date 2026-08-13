@@ -146,6 +146,7 @@ class TestStormRepository implements StormRepository {
         name: "DOLPHIN-26",
         source: "gdacs",
         basin: null,
+        area: "Marshall Islands, Japan, China",
         lat: 27,
         lon: 124.8,
         datetime: "2026-08-08T12:00:00.000Z",
@@ -608,7 +609,11 @@ test("GET /v1/storms returns active NHC storms", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
         ok: true,
-        data: [stormRepository.summary],
+        data: [{
+            ...stormRepository.summary,
+            area: "Eastern North Pacific Ocean",
+            message: null,
+        }],
         cacheStatus: "bypass",
     });
 });
@@ -630,9 +635,39 @@ test("GET /v1/storms returns every provider's storms when no region is given", a
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
         ok: true,
-        data: [stormRepository.summary, stormRepository.gdacsSummary],
+        data: [{
+            ...stormRepository.summary,
+            area: "Eastern North Pacific Ocean",
+            message: null,
+        }, {
+            ...stormRepository.gdacsSummary,
+            message: "Extreme danger. Leave immediately if ordered.",
+        }],
         cacheStatus: "bypass",
     });
+});
+
+test("GET /v1/storms includes each active storm's area and safety message", async () => {
+    const response = await fetch(baseUrl + "/v1/storms");
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload.data.map((storm: { stormId: string; area: string | null; message: string | null }) => ({
+        stormId: storm.stormId,
+        area: storm.area,
+        message: storm.message,
+    })), [
+        {
+            stormId: "nhc:EP072026",
+            area: "Eastern North Pacific Ocean",
+            message: null,
+        },
+        {
+            stormId: "gdacs:TC:1001297:51",
+            area: "Marshall Islands, Japan, China",
+            message: "Extreme danger. Leave immediately if ordered.",
+        },
+    ]);
 });
 
 test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
@@ -641,7 +676,10 @@ test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
         ok: true,
-        data: [stormRepository.gdacsSummary],
+        data: [{
+            ...stormRepository.gdacsSummary,
+            message: "Extreme danger. Leave immediately if ordered.",
+        }],
         cacheStatus: "bypass",
     });
 });

@@ -228,6 +228,7 @@ function toStormSummary (feature: unknown): StormSummary | null {
         name: readEventName(properties) ?? "TC " + eventId,
         source: "gdacs",
         basin: null,
+        area: readArea(properties.country),
         lat: position.lat,
         lon: position.lon,
         datetime: new Date(timestamp).toISOString(),

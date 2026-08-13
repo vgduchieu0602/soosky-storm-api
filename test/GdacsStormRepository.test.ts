@@ -38,6 +38,7 @@ test("GDACS storm repository normalizes an event list feature into a storm summa
         name: "DOLPHIN-26",
         source: "gdacs",
         basin: null,
+        area: "Marshall Islands, Japan, China",
         lat: 27,
         lon: 124.8,
         datetime: "2026-08-08T12:00:00.000Z",

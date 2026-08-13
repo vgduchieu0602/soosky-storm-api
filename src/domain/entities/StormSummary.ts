@@ -18,6 +18,8 @@ interface StormSummary {
     name: string;
     source: StormSource;
     basin: string | null;
+    /** Affected countries/territory from GDACS; NHC areas are derived from the basin at the HTTP boundary. */
+    area?: string | null;
     lat: number;
     lon: number;
     datetime: string;
