@@ -1,4 +1,5 @@
 import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -31,20 +32,20 @@ class CachedHistoricalStormTrackRepository implements HistoricalStormTrackReposi
         const cached = this._tracks.get(stormId);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const track = await this._source.getHistoricalStormTrack(stormId);
 
         if (track.availability !== "available") {
-            return track;
+            return markCacheStatus(track, "upstream");
         }
 
         const expiresAt = this._now() + this._ttlMs;
-        const value: HistoricalStormTrack = {
+        const value = markCacheStatus<HistoricalStormTrack>({
             ...track,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._tracks.set(stormId, value, this._ttlMs);
 

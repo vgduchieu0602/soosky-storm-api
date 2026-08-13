@@ -1,4 +1,5 @@
 import Radar from "../../domain/entities/Radar.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import RadarRepository from "../../domain/repositories/IRadarRepository.js";
 
 interface CachedRadar {
@@ -21,15 +22,15 @@ class CachedRadarRepository implements RadarRepository {
         const now = this._now();
 
         if (this._radar && now < this._radar.expiresAt) {
-            return this._radar.value;
+            return cloneWithCacheStatus(this._radar.value, "cached");
         }
 
         const expiresAt = now + this._ttlMs;
         const radar = await this._source.getRadar();
-        const value: Radar = {
+        const value = markCacheStatus<Radar>({
             ...radar,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._radar = { expiresAt, value };
 

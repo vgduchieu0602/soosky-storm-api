@@ -1,4 +1,5 @@
 import CurrentWeather from "../../domain/entities/CurrentWeather.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../domain/repositories/ICurrentWeatherRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -33,15 +34,15 @@ class CachedCurrentWeatherRepository implements CurrentWeatherRepository {
         const cached = this._observations.get(key);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const expiresAt = now + this._ttlMs;
         const observation = await this._source.getCurrentWeather(query);
-        const value: CurrentWeather = {
+        const value = markCacheStatus<CurrentWeather>({
             ...observation,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._observations.set(key, value, this._ttlMs);
 

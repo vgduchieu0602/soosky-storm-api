@@ -76,6 +76,18 @@ Ngoại lệ duy nhất: `GET /v1/map-tiles/...` trả **ảnh PNG nhị phân**
 
 Field nào provider không cung cấp thì là **`null`**, không bao giờ là `0` hay chuỗi rỗng. FE phải xử lý `null` cho mọi field số.
 
+### Cache status cho tester
+
+Mọi response có header `X-Cache-Status` để tester biết request có gọi upstream hay không; header này không làm thay đổi JSON contract.
+
+| Giá trị | Ý nghĩa |
+| --- | --- |
+| `upstream` | Cache miss: API vừa gọi nguồn dữ liệu/provider. |
+| `cached` | Cache hit: dữ liệu được trả từ cache in-memory, không gọi provider. |
+| `bypass` | Endpoint không dùng cache, ví dụ health, đăng ký device và subscribe/unsubscribe. |
+
+Với API tile ảnh, kiểm tra header này trong Postman/Network vì body không phải JSON.
+
 ---
 
 ## 1. `GET /health`

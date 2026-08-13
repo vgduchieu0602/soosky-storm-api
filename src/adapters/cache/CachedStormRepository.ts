@@ -1,4 +1,5 @@
 import StormSummary from "../../domain/entities/StormSummary.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import StormCone from "../../domain/entities/StormCone.js";
 import StormTrack from "../../domain/entities/StormTrack.js";
 import StormRepository from "../../domain/repositories/IStormRepository.js";
@@ -54,10 +55,10 @@ class CachedStormRepository implements StormRepository {
         const now = this._now();
 
         if (this._activeStorms && now < this._activeStorms.expiresAt) {
-            return this._activeStorms.value;
+            return cloneWithCacheStatus(this._activeStorms.value, "cached");
         }
 
-        const value = await this._source.getActiveStorms();
+        const value = markCacheStatus(await this._source.getActiveStorms(), "upstream");
 
         this._activeStorms = {
             expiresAt: now + this._activeStormsTtlMs,
@@ -72,15 +73,15 @@ class CachedStormRepository implements StormRepository {
         const cached = this._tracks.get(stormId);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const expiresAt = now + this._ttlMs;
         const track = await this._source.getStormTrack(stormId);
-        const value: StormTrack = {
+        const value = markCacheStatus<StormTrack>({
             ...track,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._tracks.set(stormId, value, this._ttlMs);
 
@@ -92,20 +93,20 @@ class CachedStormRepository implements StormRepository {
         const cached = this._cones.get(stormId);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const cone = await this._source.getStormCone(stormId);
 
         if (cone.availability !== "available") {
-            return cone;
+            return markCacheStatus(cone, "upstream");
         }
 
         const expiresAt = now + this._ttlMs;
-        const value: StormCone = {
+        const value = markCacheStatus<StormCone>({
             ...cone,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._cones.set(stormId, value, this._ttlMs);
 

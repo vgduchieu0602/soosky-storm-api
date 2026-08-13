@@ -1,4 +1,5 @@
 import DemoStormSummary from "../../entities/DemoStormSummary.js";
+import { getCacheStatus, markCacheStatus } from "../../cacheStatus.js";
 import StormProviderError from "../../errors/StormProviderError.js";
 import HistoricalStormTrackRepository from "../../repositories/IHistoricalStormTrackRepository.js";
 
@@ -33,7 +34,7 @@ class GetDemoStormsUseCase {
             };
         }));
 
-        return tracks.map(({ profile, track }) => {
+        const storms: DemoStormSummary[] = tracks.map(({ profile, track }) => {
             const latest = track.history.at(-1);
 
             if (track.availability !== "available" || !latest) {
@@ -54,6 +55,12 @@ class GetDemoStormsUseCase {
                 isDemo: true,
             };
         });
+
+        const cacheStatus = tracks.every(({ track }) => getCacheStatus(track) === "cached")
+            ? "cached"
+            : "upstream";
+
+        return markCacheStatus(storms, cacheStatus);
     }
 
     private _randomInteger (minimum: number, maximum: number): number {

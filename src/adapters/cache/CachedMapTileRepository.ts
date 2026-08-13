@@ -1,4 +1,5 @@
 import MapTile, { MapTileQuery } from "../../domain/entities/MapTile.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import MapTileRepository from "../../domain/repositories/IMapTileRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -32,10 +33,10 @@ class CachedMapTileRepository implements MapTileRepository {
         const cached = this._tiles.get(key);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
-        const value = await this._source.getTile(query);
+        const value = markCacheStatus(await this._source.getTile(query), "upstream");
 
         this._tiles.set(key, value, this._ttlMs);
 

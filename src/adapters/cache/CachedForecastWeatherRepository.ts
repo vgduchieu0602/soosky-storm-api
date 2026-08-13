@@ -1,4 +1,5 @@
 import ForecastWeather from "../../domain/entities/ForecastWeather.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -33,15 +34,15 @@ class CachedForecastWeatherRepository implements ForecastWeatherRepository {
         const cached = this._forecasts.get(key);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const expiresAt = now + this._ttlMs;
         const forecast = await this._source.getForecast(query);
-        const value: ForecastWeather = {
+        const value = markCacheStatus<ForecastWeather>({
             ...forecast,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._forecasts.set(key, value, this._ttlMs);
 

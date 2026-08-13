@@ -44,6 +44,7 @@ import SaveRegionSubscriptionUseCase from "../src/domain/use-cases/subscription/
 import GetForecastWeatherUseCase from "../src/domain/use-cases/weather/GetForecastWeatherUseCase.js";
 import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
+import { markCacheStatus } from "../src/domain/cacheStatus.js";
 import RateLimiter from "../src/http/RateLimiter.js";
 import Server from "../src/http/Server.js";
 
@@ -696,6 +697,7 @@ test("GET /v1/weather/forecast maps an upstream error to 502", async () => {
         const response = await fetch(baseUrl + "/v1/weather/forecast?lat=10&lon=106");
 
         assert.equal(response.status, 502);
+        assert.equal(response.headers.get("x-cache-status"), "upstream");
     } finally {
         forecastWeatherRepository.error = null;
     }
@@ -774,6 +776,19 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
             forecast: [],
         },
     });
+});
+
+test("GET /v1/storms/:stormId/track exposes whether the result came from cache", async () => {
+    markCacheStatus(stormRepository.track, "cached");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms/nhc:EP072026/track");
+
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get("x-cache-status"), "cached");
+    } finally {
+        markCacheStatus(stormRepository.track, "upstream");
+    }
 });
 
 test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {

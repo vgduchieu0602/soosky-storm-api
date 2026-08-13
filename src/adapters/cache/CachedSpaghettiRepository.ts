@@ -1,4 +1,5 @@
 import StormSpaghetti from "../../domain/entities/StormSpaghetti.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
 import SpaghettiRepository from "../../domain/repositories/ISpaghettiRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -32,20 +33,20 @@ class CachedSpaghettiRepository implements SpaghettiRepository {
         const cached = this._values.get(stormId);
 
         if (cached) {
-            return cached;
+            return cloneWithCacheStatus(cached, "cached");
         }
 
         const result = await this._source.getStormSpaghetti(stormId);
 
         if (result.availability !== "available") {
-            return result;
+            return markCacheStatus(result, "upstream");
         }
 
         const expiresAt = now + this._ttlMs;
-        const value: StormSpaghetti = {
+        const value = markCacheStatus<StormSpaghetti>({
             ...result,
             cachedUntil: new Date(expiresAt).toISOString(),
-        };
+        }, "upstream");
 
         this._values.set(stormId, value, this._ttlMs);
 

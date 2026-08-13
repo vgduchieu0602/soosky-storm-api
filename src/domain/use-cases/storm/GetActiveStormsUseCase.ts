@@ -1,4 +1,5 @@
 import StormSummary, { StormSource } from "../../entities/StormSummary.js";
+import { getCacheStatus, markCacheStatus } from "../../cacheStatus.js";
 import ActiveStormsRepository from "../../repositories/IActiveStormsRepository.js";
 
 export { GetActiveStormsUseCase as default };
@@ -18,6 +19,9 @@ class GetActiveStormsUseCase {
             return storms;
         }
 
-        return storms.filter((storm) => storm.source === query.source);
+        const filtered = storms.filter((storm) => storm.source === query.source);
+        const cacheStatus = getCacheStatus(storms);
+
+        return cacheStatus === null ? filtered : markCacheStatus(filtered, cacheStatus);
     }
 }

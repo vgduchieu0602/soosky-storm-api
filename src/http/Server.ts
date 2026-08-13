@@ -25,6 +25,7 @@ import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/Unsubs
 import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import ClientError from "./ClientError.js";
+import { getCacheStatus } from "../domain/cacheStatus.js";
 import formatResponseData from "./formatResponseData.js";
 import formatStormTrackResponse from "./formatStormTrackResponse.js";
 import RateLimiter from "./RateLimiter.js";
@@ -79,6 +80,7 @@ type StormRegion = "all" | "us-nhc" | "gdacs";
 const NHC_STORM_ID_PATTERN = /^nhc:[A-Z]{2}\d{6}$/;
 const NHC_SUPPORTED_STORM_ID_PATTERN = /^nhc:(AL|EP|CP)\d{6}$/;
 const GDACS_STORM_ID_PATTERN = /^gdacs:TC:[1-9]\d*:[1-9]\d*$/;
+const CACHE_STATUS_HEADER = "X-Cache-Status";
 /** Push failures are reported without any APNs reason, key, or token detail. */
 const PUSH_ERROR_RESPONSES = {
     invalid_device_token: {
@@ -175,6 +177,10 @@ class Server {
     private _registerRouter (): void {
         this._server.set("trust proxy", this._config.http.trustProxy ?? 1);
         this._server.use(express.json({ limit: "64kb" }));
+        this._server.use((_request: Request, response: Response, next: NextFunction) => {
+            response.set(CACHE_STATUS_HEADER, "bypass");
+            next();
+        });
         this._server.use((request: Request, response: Response, next: NextFunction) => {
             const scope = this._rateLimiter.check(request.ip ?? "unknown");
 
@@ -215,6 +221,7 @@ class Server {
                     });
                     return;
                 case error instanceof StormProviderError:
+                    response.set(CACHE_STATUS_HEADER, "upstream");
                     response.status(502).json({
                         ok: false,
                         code: "UPSTREAM_UNAVAILABLE",
@@ -283,12 +290,14 @@ class Server {
             region === "all" ? {} : { source: REGION_SOURCES[region] },
         );
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
     private async _GET_demoStorms (_request: Request, response: Response): Promise<void> {
         const data = await this._useCases.storm.getDemoStorms.execute();
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -296,6 +305,7 @@ class Server {
         const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getForecastWeather.execute({ lat, lon, units });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -303,6 +313,7 @@ class Server {
         const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getCurrentWeather.execute({ lat, lon, units });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -380,6 +391,7 @@ class Server {
 
         const tile = await this._useCases.map.getMapTile.execute({ layer, z, x, y });
 
+        this._setCacheStatus(response, tile);
         response.set("Content-Type", tile.contentType);
         response.send(tile.buffer);
     }
@@ -387,6 +399,7 @@ class Server {
     private async _GET_radar (_request: Request, response: Response): Promise<void> {
         const data = await this._useCases.radar.getRadar.execute();
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -399,6 +412,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormTrack.execute({ stormId });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data: formatStormTrackResponse(data) });
     }
 
@@ -411,6 +425,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormCone.execute({ stormId });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -423,6 +438,7 @@ class Server {
 
         const data = await this._useCases.storm.getStormSpaghetti.execute({ stormId });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
     }
 
@@ -435,7 +451,12 @@ class Server {
 
         const data = await this._useCases.storm.getHistoricalStormTrack.execute({ stormId });
 
+        this._setCacheStatus(response, data);
         response.json({ ok: true, data });
+    }
+
+    private _setCacheStatus (response: Response, data: unknown): void {
+        response.set(CACHE_STATUS_HEADER, getCacheStatus(data) ?? "bypass");
     }
 }
 

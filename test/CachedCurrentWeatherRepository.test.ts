@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedCurrentWeatherRepository from "../src/adapters/cache/CachedCurrentWeatherRepository.js";
+import { getCacheStatus } from "../src/domain/cacheStatus.js";
 import CurrentWeather from "../src/domain/entities/CurrentWeather.js";
 import CurrentWeatherRepository, { CurrentWeatherQuery } from "../src/domain/repositories/ICurrentWeatherRepository.js";
 
@@ -17,6 +18,8 @@ test("Current Weather cache reuses a location and units until its exact expiry",
     assert.equal(source.calls, 1);
     assert.equal(first.cachedUntil, "2026-08-08T00:10:00.000Z");
     assert.equal(second.cachedUntil, "2026-08-08T00:10:00.000Z");
+    assert.equal(getCacheStatus(first), "upstream");
+    assert.equal(getCacheStatus(second), "cached");
 
     now = Date.parse("2026-08-08T00:09:59.000Z");
     await repository.getCurrentWeather({ lat: 10, lon: 106, units: "metric" });
@@ -28,6 +31,7 @@ test("Current Weather cache reuses a location and units until its exact expiry",
 
     assert.equal(source.calls, 2);
     assert.equal(refreshed.cachedUntil, "2026-08-08T00:20:00.000Z");
+    assert.equal(getCacheStatus(refreshed), "upstream");
 });
 
 test("Current Weather cache keys on latitude, longitude and units", async () => {
