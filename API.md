@@ -479,7 +479,7 @@ Tile ảnh bản đồ. **Trả PNG, không phải JSON.**
 | `x` | Số nguyên `0 … 2^z − 1` | z=2 → 0…3 · z=7 → 0…127 |
 | `y` | Số nguyên `0 … 2^z − 1` | |
 
-**Output 200:** body là ảnh, header `Content-Type: image/png`. Cache 10 phút (tạm thời cho giai đoạn test).
+**Output 200:** body là ảnh, header `Content-Type: image/png`. Cache 20 phút (tạm thời cho giai đoạn test).
 
 FE dùng trực tiếp URL này làm tile source:
 
@@ -510,7 +510,7 @@ Manifest radar RainViewer để FE tự ghép tile.
 | `past` | array | `{ time, path }` — frame quá khứ, cách nhau ~10 phút |
 | `nowcast` | array | `{ time, path }` — dự báo ngắn, **có thể là `[]`** |
 | `generatedAt` | string | ISO UTC |
-| `cachedUntil` | string \| null | ISO UTC |
+| `cachedUntil` | string \| null | ISO UTC (cache 20 phút — tạm thời cho giai đoạn test) |
 
 `time` trong `past`/`nowcast` là **ISO UTC**. Cách dùng:
 
