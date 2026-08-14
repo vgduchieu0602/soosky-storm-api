@@ -66,7 +66,7 @@ chmod 600 .env
 
 ```bash
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/soosky_storm?retryWrites=true&w=majority
-OPENWEATHER_API_KEY=<key One Call 4.0>
+OPENWEATHER_API_KEY=<key OpenWeather (Current Weather 2.5 + Forecast 5 day/3 hour 2.5 + map tiles)>
 APNS_TEAM_ID=<10 ký tự>
 APNS_KEY_ID=<10 ký tự>
 APNS_BUNDLE_ID=com.soosky.SooskyStormTracker

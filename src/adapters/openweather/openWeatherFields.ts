@@ -7,10 +7,14 @@ export {
     isRecord,
     readOptionalNumber,
     readRain1h,
+    readRainAccumulation,
     readRequiredNumber,
     readRequiredString,
+    readTimezone,
     readWeather,
 };
+
+const SECONDS_PER_HOUR = 3600;
 
 const WIND_DIRECTIONS = [
     "N", "NNE", "NE", "ENE",
@@ -57,6 +61,10 @@ function readWeather (value: unknown): ForecastWeatherCondition[] {
 }
 
 function readRain1h (value: unknown): number | null {
+    return readRainAccumulation(value, "1h");
+}
+
+function readRainAccumulation (value: unknown, key: "1h" | "3h"): number | null {
     if (value === undefined || value === null) {
         return null;
     }
@@ -65,7 +73,30 @@ function readRain1h (value: unknown): number | null {
         throw new StormProviderError("OpenWeather field [rain] was invalid.");
     }
 
-    return readOptionalNumber(value, "1h");
+    return readOptionalNumber(value, key);
+}
+
+/**
+ * The 2.5 endpoints publish a UTC offset in seconds instead of a zone name. Whole-hour
+ * offsets map onto the IANA `Etc/GMT` zones, whose sign is inverted by definition;
+ * half-hour zones such as India have no `Etc/GMT` equivalent and stay null.
+ */
+function readTimezone (value: unknown): string | null {
+    if (typeof value !== "number" || !Number.isFinite(value) || value % SECONDS_PER_HOUR !== 0) {
+        return null;
+    }
+
+    const hours = value / SECONDS_PER_HOUR;
+
+    if (hours === 0) {
+        return "UTC";
+    }
+
+    if (hours < -12 || hours > 14) {
+        return null;
+    }
+
+    return "Etc/GMT" + (hours > 0 ? "-" : "+") + Math.abs(hours);
 }
 
 function readRequiredNumber (value: Record<string, unknown>, key: string): number {

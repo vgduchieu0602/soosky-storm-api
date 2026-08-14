@@ -8,18 +8,13 @@ import {
     readOptionalNumber,
     readRain1h,
     readRequiredNumber,
+    readTimezone,
     readWeather,
 } from "./openWeatherFields.js";
 
 export { OpenWeatherCurrentWeatherRepository as default };
 
-const CURRENT_URL = "https://api.openweathermap.org/data/4.0/onecall/current";
-const HOURLY_TIMELINE_URL = "https://api.openweathermap.org/data/4.0/onecall/timeline/1h";
-
-interface OpenWeatherObservation {
-    timezone: string | null;
-    point: Record<string, unknown>;
-}
+const CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather";
 
 class OpenWeatherCurrentWeatherRepository implements CurrentWeatherRepository {
     public constructor (
@@ -32,62 +27,39 @@ class OpenWeatherCurrentWeatherRepository implements CurrentWeatherRepository {
             throw new StormProviderError("OPENWEATHER_API_KEY is required.");
         }
 
-        // One Call 4.0 publishes the observation without `pop`, so the probability for
-        // the current hour is read from the hourly timeline instead of being invented.
-        const [observation, precipitationProbability] = await Promise.all([
-            this._getObservation(CURRENT_URL, query),
-            this._getCurrentHourProbability(query),
-        ]);
-        const point = observation.point;
-        const windDeg = readOptionalNumber(point, "wind_deg");
-        const weather = readWeather(point.weather);
+        const payload = await this._getObservation(query);
+        const main = readMain(payload);
+        const wind = readRecord(payload.wind);
+        const windDeg = wind === null ? null : readOptionalNumber(wind, "deg");
+        const weather = readWeather(payload.weather);
 
         return {
             location: {
                 lat: query.lat,
                 lon: query.lon,
-                timezone: observation.timezone,
+                timezone: readTimezone(payload.timezone),
             },
             units: getUnits(query.units),
-            observedAt: readObservedAt(point),
+            observedAt: readObservedAt(payload),
             cachedUntil: null,
-            temperature: readOptionalNumber(point, "temp"),
-            humidity: readOptionalNumber(point, "humidity"),
-            uvi: readOptionalNumber(point, "uvi"),
-            visibility: readOptionalNumber(point, "visibility"),
-            windSpeed: readOptionalNumber(point, "wind_speed"),
+            temperature: readOptionalNumber(main, "temp"),
+            humidity: readOptionalNumber(main, "humidity"),
+            // Current Weather Data 2.5 publishes neither a UV index nor a precipitation
+            // probability; both stay null rather than being invented from the forecast.
+            uvi: null,
+            visibility: readOptionalNumber(payload, "visibility"),
+            windSpeed: wind === null ? null : readOptionalNumber(wind, "speed"),
             windDeg,
             windDirection: windDeg === null ? null : getWindDirection(windDeg),
-            rain1h: readRain1h(point.rain),
-            precipitationProbability,
+            rain1h: readRain1h(payload.rain),
+            precipitationProbability: null,
             weatherDescription: weather[0]?.description ?? null,
             weather,
         };
     }
 
-    /**
-     * Returns null instead of failing the request: the observation itself is the
-     * payload of this endpoint, and the probability is supplementary.
-     */
-    private async _getCurrentHourProbability (query: CurrentWeatherQuery): Promise<number | null> {
-        try {
-            const probability = readOptionalNumber(
-                (await this._getObservation(HOURLY_TIMELINE_URL, query)).point,
-                "pop",
-            );
-
-            if (probability === null || probability < 0 || probability > 1) {
-                return null;
-            }
-
-            return probability;
-        } catch {
-            return null;
-        }
-    }
-
-    private async _getObservation (baseUrl: string, query: CurrentWeatherQuery): Promise<OpenWeatherObservation> {
-        const url = new URL(baseUrl);
+    private async _getObservation (query: CurrentWeatherQuery): Promise<Record<string, unknown>> {
+        const url = new URL(CURRENT_URL);
 
         url.searchParams.set("lat", String(query.lat));
         url.searchParams.set("lon", String(query.lon));
@@ -120,29 +92,36 @@ class OpenWeatherCurrentWeatherRepository implements CurrentWeatherRepository {
             throw new StormProviderError("OpenWeather response was not valid JSON.", { cause: error });
         }
 
-        return toObservation(payload);
+        if (!isRecord(payload)) {
+            throw new StormProviderError("OpenWeather observation was invalid.");
+        }
+
+        return payload;
     }
 }
 
-function toObservation (payload: unknown): OpenWeatherObservation {
-    if (!isRecord(payload) || !Array.isArray(payload.data)) {
-        throw new StormProviderError("OpenWeather response did not contain data.");
+function readMain (payload: Record<string, unknown>): Record<string, unknown> {
+    if (!isRecord(payload.main)) {
+        throw new StormProviderError("OpenWeather field [main] was missing.");
     }
 
-    const [point] = payload.data;
-
-    if (!isRecord(point)) {
-        throw new StormProviderError("OpenWeather observation was invalid.");
-    }
-
-    return {
-        timezone: typeof payload.timezone === "string" && payload.timezone.trim() ? payload.timezone : null,
-        point,
-    };
+    return payload.main;
 }
 
-function readObservedAt (point: Record<string, unknown>): string {
-    const observedAt = new Date(readRequiredNumber(point, "dt") * 1000);
+function readRecord (value: unknown): Record<string, unknown> | null {
+    if (value === undefined || value === null) {
+        return null;
+    }
+
+    if (!isRecord(value)) {
+        throw new StormProviderError("OpenWeather field [wind] was invalid.");
+    }
+
+    return value;
+}
+
+function readObservedAt (payload: Record<string, unknown>): string {
+    const observedAt = new Date(readRequiredNumber(payload, "dt") * 1000);
 
     if (Number.isNaN(observedAt.getTime())) {
         throw new StormProviderError("OpenWeather field [dt] was invalid.");

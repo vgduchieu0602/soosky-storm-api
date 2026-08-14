@@ -14,8 +14,12 @@ export { FixtureWeatherRepository as default };
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
-const HOURLY_POINTS = 48;
-const DAILY_POINTS = 10;
+/** Mirrors OpenWeather 5 day / 3 hour: one point every three hours, folded into 5 days. */
+const STEP_HOURS = 3;
+const STEP_MS = STEP_HOURS * HOUR_MS;
+const HOURLY_POINTS = 40;
+const DAILY_POINTS = 5;
+const SLOTS_PER_DAY = 24 / STEP_HOURS;
 /** Inside this radius the weather reflects the fixture storm instead of a calm day. */
 const STORM_RADIUS_KM = 400;
 const KNOT_TO_MS = 0.514444;
@@ -51,7 +55,7 @@ class FixtureWeatherRepository implements CurrentWeatherRepository, ForecastWeat
     public constructor (private readonly _now: () => number = Date.now) {}
 
     public async getCurrentWeather (query: CurrentWeatherQuery): Promise<CurrentWeather> {
-        const observedAt = floorToHour(this._now());
+        const observedAt = floorToStep(this._now());
         const sample = getSample(query.lat, query.lon, observedAt);
 
         return {
@@ -61,33 +65,59 @@ class FixtureWeatherRepository implements CurrentWeatherRepository, ForecastWeat
             cachedUntil: null,
             temperature: toTemperature(sample.temperatureC, query.units),
             humidity: sample.humidity,
-            uvi: sample.uvi,
+            // Current Weather Data 2.5 carries neither of these, so the fixture doesn't either.
+            uvi: null,
             visibility: sample.visibility,
             windSpeed: toWindSpeed(sample.windSpeedMs, query.units),
             windDeg: sample.windDeg,
             windDirection: toCompassDirection(sample.windDeg),
             rain1h: sample.rainMmPerHour,
-            precipitationProbability: sample.pop,
+            precipitationProbability: null,
             weatherDescription: sample.weather.description,
             weather: [{ ...sample.weather }],
         };
     }
 
     public async getForecast (query: ForecastWeatherQuery): Promise<ForecastWeather> {
-        const start = floorToHour(this._now());
+        const start = floorToStep(this._now());
+        const firstDay = Math.floor(start / DAY_MS) * DAY_MS;
 
         return {
             location: toLocation(query.lat, query.lon),
             units: getUnits(query.units),
             cachedUntil: null,
             hourly: Array.from({ length: HOURLY_POINTS }, (_value, index) => {
-                return toPoint(query, start + (index * HOUR_MS));
+                return toPoint(query, start + (index * STEP_MS));
             }),
             daily: Array.from({ length: DAILY_POINTS }, (_value, index) => {
-                return toPoint(query, floorToNoon(start) + (index * DAY_MS));
+                return toDailyPoint(query, firstDay + (index * DAY_MS));
             }),
         };
     }
+}
+
+/** Folds a day of three-hour slots the same way the provider adapter does. */
+function toDailyPoint (query: ForecastWeatherQuery, dayStart: number): ForecastWeatherPoint {
+    const slots = Array.from({ length: SLOTS_PER_DAY }, (_value, index) => {
+        return toPoint(query, dayStart + (index * STEP_MS));
+    });
+    const noon = toPoint(query, dayStart + (12 * HOUR_MS));
+    const rainTotalMm = slots.reduce<number | null>((total, slot) => {
+        return slot.rain1hMm === null ? total : (total ?? 0) + (slot.rain1hMm * STEP_HOURS);
+    }, null);
+
+    return {
+        ...noon,
+        pop: pickMax(slots.map((slot) => slot.pop)),
+        windSpeed: pickMax(slots.map((slot) => slot.windSpeed)),
+        rain1hMm: rainTotalMm === null ? null : round(rainTotalMm),
+    };
+}
+
+function pickMax (values: (number | null)[]): number | null {
+    const numbers = values.filter((value): value is number => value !== null);
+
+    return numbers.length ? Math.max(...numbers) : null;
 }
 
 function toPoint (query: ForecastWeatherQuery, time: number): ForecastWeatherPoint {
@@ -97,7 +127,8 @@ function toPoint (query: ForecastWeatherQuery, time: number): ForecastWeatherPoi
         time: new Date(time).toISOString(),
         temp: toTemperature(sample.temperatureC, query.units),
         humidity: sample.humidity,
-        uvi: sample.uvi,
+        // 5 day / 3 hour carries no UV index, so neither does the fixture.
+        uvi: null,
         visibility: sample.visibility,
         windSpeed: toWindSpeed(sample.windSpeedMs, query.units),
         windDeg: sample.windDeg,
@@ -207,12 +238,8 @@ function getUnits (units: ForecastUnits): WeatherUnits {
     return { temperature: "C", windSpeed: "m/s", visibility: "m", rain: "mm/h" };
 }
 
-function floorToHour (time: number): number {
-    return Math.floor(time / HOUR_MS) * HOUR_MS;
-}
-
-function floorToNoon (time: number): number {
-    return (Math.floor(time / DAY_MS) * DAY_MS) + (12 * HOUR_MS);
+function floorToStep (time: number): number {
+    return Math.floor(time / STEP_MS) * STEP_MS;
 }
 
 function round (value: number): number {

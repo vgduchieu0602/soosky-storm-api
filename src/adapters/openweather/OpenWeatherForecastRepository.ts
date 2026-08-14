@@ -6,24 +6,27 @@ import {
     getWindDirection,
     isRecord,
     readOptionalNumber,
-    readRain1h,
+    readRainAccumulation,
     readRequiredNumber,
+    readTimezone,
     readWeather,
 } from "./openWeatherFields.js";
 
-const HOURLY_TIMELINE_URL = "https://api.openweathermap.org/data/4.0/onecall/timeline/1h";
-const DAILY_TIMELINE_URL = "https://api.openweathermap.org/data/4.0/onecall/timeline/1day";
-const OPENWEATHER_HOST = "api.openweathermap.org";
-
-/**
- * One Call 4.0 caps a timeline page at 20 hourly points and ignores a larger `cnt`,
- * so extra hourly pages are followed to reach a usable mobile timeline. Ten daily
- * points already cover the published daily range, so daily stays on one page.
- */
-const MAX_HOURLY_PAGES = 3;
-const MAX_DAILY_PAGES = 1;
+const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+/** The 5 day / 3 hour endpoint publishes one point every three hours. */
+const STEP_HOURS = 3;
+const MAX_DAILY_POINTS = 5;
 
 export { OpenWeatherForecastRepository as default };
+
+interface ParsedForecastPoint {
+    point: ForecastWeatherPoint;
+    timestamp: number;
+    /** Rain accumulated over the three-hour slot, in millimetres. */
+    rainMm: number | null;
+}
 
 class OpenWeatherForecastRepository implements ForecastWeatherRepository {
     public constructor (
@@ -36,63 +39,31 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
             throw new StormProviderError("OPENWEATHER_API_KEY is required.");
         }
 
-        const [hourly, daily] = await Promise.all([
-            this._getTimeline(HOURLY_TIMELINE_URL, query, "hourly", MAX_HOURLY_PAGES),
-            this._getTimeline(DAILY_TIMELINE_URL, query, "daily", MAX_DAILY_PAGES),
-        ]);
+        const payload = await this._getForecast(query);
+        const parsed = readList(payload).map(parsePoint).sort((left, right) => left.timestamp - right.timestamp);
+        const offsetSeconds = readCityOffsetSeconds(payload);
 
         return {
             location: {
                 lat: query.lat,
                 lon: query.lon,
-                timezone: hourly.timezone ?? daily.timezone,
+                timezone: readTimezone(offsetSeconds),
             },
             units: getUnits(query.units),
             cachedUntil: null,
-            hourly: hourly.points,
-            daily: daily.points,
+            hourly: parsed.map(({ point }) => point),
+            daily: toDailyPoints(parsed, (offsetSeconds ?? 0) * 1000),
         };
     }
 
-    private async _getTimeline (
-        baseUrl: string,
-        query: ForecastWeatherQuery,
-        timelineKind: "hourly" | "daily",
-        maxPages: number,
-    ): Promise<OpenWeatherTimeline> {
-        const pointsByTime = new Map<string, ForecastWeatherPoint>();
-        const requestedUrls = new Set<string>();
-        let timezone: string | null = null;
-        let nextUrl: string | null = buildFirstPageUrl(baseUrl, query, this._apiKey ?? "");
+    private async _getForecast (query: ForecastWeatherQuery): Promise<Record<string, unknown>> {
+        const url = new URL(FORECAST_URL);
 
-        for (let page = 0; page < maxPages && nextUrl; page += 1) {
-            if (requestedUrls.has(nextUrl)) {
-                break;
-            }
+        url.searchParams.set("lat", String(query.lat));
+        url.searchParams.set("lon", String(query.lon));
+        url.searchParams.set("units", query.units);
+        url.searchParams.set("appid", this._apiKey ?? "");
 
-            requestedUrls.add(nextUrl);
-
-            const payload = await this._getPage(nextUrl);
-            const parsed = parseTimeline(payload, timelineKind);
-
-            timezone = timezone ?? parsed.timezone;
-
-            for (const point of parsed.points) {
-                if (!pointsByTime.has(point.time)) {
-                    pointsByTime.set(point.time, point);
-                }
-            }
-
-            nextUrl = readNextPageUrl(payload);
-        }
-
-        return {
-            timezone,
-            points: [...pointsByTime.values()].sort((left, right) => Date.parse(left.time) - Date.parse(right.time)),
-        };
-    }
-
-    private async _getPage (url: string): Promise<unknown> {
         let response: Response;
 
         try {
@@ -111,109 +82,134 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
             throw new StormProviderError("OpenWeather request failed with HTTP " + response.status + ".");
         }
 
+        let payload: unknown;
+
         try {
-            return await response.json();
+            payload = await response.json();
         } catch (error) {
             throw new StormProviderError("OpenWeather response was not valid JSON.", { cause: error });
         }
+
+        if (!isRecord(payload)) {
+            throw new StormProviderError("OpenWeather response did not contain data.");
+        }
+
+        return payload;
     }
 }
 
-interface OpenWeatherTimeline {
-    timezone: string | null;
-    points: ForecastWeatherPoint[];
-}
-
-function buildFirstPageUrl (baseUrl: string, query: ForecastWeatherQuery, apiKey: string): string {
-    const url = new URL(baseUrl);
-
-    url.searchParams.set("lat", String(query.lat));
-    url.searchParams.set("lon", String(query.lon));
-    url.searchParams.set("units", query.units);
-    url.searchParams.set("appid", apiKey);
-
-    return url.toString();
-}
-
-/**
- * OpenWeather returns `next` as a plain-HTTP URL carrying the API key, so the link is
- * only used after the host is confirmed and the scheme is forced back to HTTPS.
- */
-function readNextPageUrl (payload: unknown): string | null {
-    if (!isRecord(payload) || typeof payload.next !== "string" || !payload.next.trim()) {
-        return null;
-    }
-
-    let url: URL;
-
-    try {
-        url = new URL(payload.next);
-    } catch {
-        return null;
-    }
-
-    if (url.hostname !== OPENWEATHER_HOST) {
-        return null;
-    }
-
-    url.protocol = "https:";
-
-    return url.toString();
-}
-
-function parseTimeline (value: unknown, timelineKind: "hourly" | "daily"): OpenWeatherTimeline {
-    if (!isRecord(value) || !Array.isArray(value.data)) {
+function readList (payload: Record<string, unknown>): unknown[] {
+    if (!Array.isArray(payload.list)) {
         throw new StormProviderError("OpenWeather response did not contain data.");
     }
 
-    return {
-        timezone: typeof value.timezone === "string" && value.timezone.trim() ? value.timezone : null,
-        points: value.data.map((point) => parsePoint(point, timelineKind)),
-    };
+    return payload.list;
 }
 
-function parsePoint (value: unknown, timelineKind: "hourly" | "daily"): ForecastWeatherPoint {
+function readCityOffsetSeconds (payload: Record<string, unknown>): number | null {
+    return isRecord(payload.city) ? readOptionalNumber(payload.city, "timezone") : null;
+}
+
+function parsePoint (value: unknown): ParsedForecastPoint {
     if (!isRecord(value)) {
         throw new StormProviderError("OpenWeather forecast item was invalid.");
     }
 
-    const timestamp = readRequiredNumber(value, "dt");
-    const time = new Date(timestamp * 1000);
+    const timestamp = readRequiredNumber(value, "dt") * 1000;
 
-    if (Number.isNaN(time.getTime())) {
+    if (!Number.isFinite(timestamp)) {
         throw new StormProviderError("OpenWeather field [dt] was invalid.");
     }
 
-    const windDeg = readOptionalNumber(value, "wind_deg");
+    const main = isRecord(value.main) ? value.main : null;
+    const wind = isRecord(value.wind) ? value.wind : null;
+    const windDeg = wind === null ? null : readOptionalNumber(wind, "deg");
     const pop = readOptionalNumber(value, "pop");
 
     if (pop !== null && (pop < 0 || pop > 1)) {
         throw new StormProviderError("OpenWeather field [pop] was invalid.");
     }
 
+    const rainMm = readRainAccumulation(value.rain, "3h");
+
     return {
-        time: time.toISOString(),
-        temp: timelineKind === "daily" ? readDailyTemp(value.temp) : readOptionalNumber(value, "temp"),
-        humidity: readOptionalNumber(value, "humidity"),
-        uvi: readOptionalNumber(value, "uvi"),
-        visibility: readOptionalNumber(value, "visibility"),
-        windSpeed: readOptionalNumber(value, "wind_speed"),
-        windDeg,
-        windDirection: windDeg === null ? null : getWindDirection(windDeg),
-        pop,
-        rain1hMm: timelineKind === "hourly" ? readRain1h(value.rain) : null,
-        weather: readWeather(value.weather),
+        timestamp,
+        rainMm,
+        point: {
+            time: new Date(timestamp).toISOString(),
+            temp: main === null ? null : readOptionalNumber(main, "temp"),
+            humidity: main === null ? null : readOptionalNumber(main, "humidity"),
+            // 5 day / 3 hour carries no UV index.
+            uvi: null,
+            visibility: readOptionalNumber(value, "visibility"),
+            windSpeed: wind === null ? null : readOptionalNumber(wind, "speed"),
+            windDeg,
+            windDirection: windDeg === null ? null : getWindDirection(windDeg),
+            pop,
+            // The provider accumulates rain over the slot; the entity carries a rate.
+            rain1hMm: rainMm === null ? null : round(rainMm / STEP_HOURS),
+            weather: readWeather(value.weather),
+        },
     };
 }
 
-function readDailyTemp (value: unknown): number | null {
-    if (value === undefined || value === null) {
-        return null;
+/**
+ * The endpoint has no daily array, so days are folded out of the three-hour points:
+ * the point nearest local noon describes the day, while wind and probability take the
+ * worst value of the day and rain is the day's total.
+ */
+function toDailyPoints (parsed: ParsedForecastPoint[], offsetMs: number): ForecastWeatherPoint[] {
+    const days = new Map<number, ParsedForecastPoint[]>();
+
+    for (const entry of parsed) {
+        const localDay = Math.floor((entry.timestamp + offsetMs) / DAY_MS);
+        const bucket = days.get(localDay);
+
+        if (bucket) {
+            bucket.push(entry);
+            continue;
+        }
+
+        days.set(localDay, [entry]);
     }
 
-    if (!isRecord(value)) {
-        throw new StormProviderError("OpenWeather field [temp] was invalid.");
-    }
+    return [...days.entries()]
+        .sort(([left], [right]) => left - right)
+        .slice(0, MAX_DAILY_POINTS)
+        .map(([localDay, entries]) => toDailyPoint(localDay, entries, offsetMs));
+}
 
-    return readOptionalNumber(value, "day");
+function toDailyPoint (
+    localDay: number,
+    entries: ParsedForecastPoint[],
+    offsetMs: number,
+): ForecastWeatherPoint {
+    const localNoon = (localDay * DAY_MS) + (12 * HOUR_MS);
+    const representative = entries.reduce((closest, entry) => {
+        const entryDistance = Math.abs((entry.timestamp + offsetMs) - localNoon);
+        const closestDistance = Math.abs((closest.timestamp + offsetMs) - localNoon);
+
+        return entryDistance < closestDistance ? entry : closest;
+    });
+    const rainTotalMm = entries.reduce<number | null>((total, entry) => {
+        return entry.rainMm === null ? total : (total ?? 0) + entry.rainMm;
+    }, null);
+
+    return {
+        ...representative.point,
+        time: new Date(localNoon - offsetMs).toISOString(),
+        pop: pickMax(entries.map(({ point }) => point.pop)),
+        windSpeed: pickMax(entries.map(({ point }) => point.windSpeed)),
+        rain1hMm: rainTotalMm === null ? null : round(rainTotalMm),
+    };
+}
+
+function pickMax (values: (number | null)[]): number | null {
+    const numbers = values.filter((value): value is number => value !== null);
+
+    return numbers.length ? Math.max(...numbers) : null;
+}
+
+function round (value: number): number {
+    return Math.round(value * 100) / 100;
 }

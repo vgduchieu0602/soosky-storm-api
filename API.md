@@ -369,7 +369,7 @@ FE vẽ một polyline cho mỗi phần tử `models[]`.
 
 ## 7. `GET /v1/weather/current`
 
-Thời tiết hiện tại tại một điểm.
+Thời tiết hiện tại tại một điểm. Nguồn: OpenWeather **Current Weather Data 2.5** (`/data/2.5/weather`).
 
 **Input (query):**
 
@@ -391,31 +391,31 @@ Thời tiết hiện tại tại một điểm.
 
 | Field | Kiểu | Đơn vị |
 | --- | --- | --- |
-| `location` | object | `{ lat, lon, timezone }` — `timezone` dạng IANA, có thể `null` |
+| `location` | object | `{ lat, lon, timezone }` — IANA, suy từ offset provider trả về (`Etc/GMT-7` cho UTC+07:00). Múi lệch nửa giờ → `null` |
 | `units` | object | Chính là bảng trên, FE nên đọc từ đây thay vì hardcode |
 | `observedAt` | string | ISO UTC |
 | `cachedUntil` | string \| null | ISO UTC (cache 10 phút) |
 | `temperature` | number \| null | theo `units.temperature` |
 | `humidity` | number \| null | **%** |
-| `uvi` | number \| null | chỉ số UV |
+| `uvi` | **luôn `null`** | Current Weather Data 2.5 không có chỉ số UV |
 | `visibility` | number \| null | **mét** |
 | `windSpeed` | number \| null | theo `units.windSpeed` |
 | `windDeg` | number \| null | **độ 0–360** |
 | `windDirection` | string \| null | `N`…`NNW` |
 | `rain1h` | number \| null | **mm**, `null` khi không mưa |
-| `precipitationProbability` | number \| null | **0–1** |
+| `precipitationProbability` | **luôn `null`** | 2.5 không có `pop` cho thời tiết hiện tại — lấy từ `/v1/weather/forecast` nếu cần |
 | `weatherDescription` | string \| null | Mô tả tiếng Anh |
 | `weather` | array | `{ id, main, description, icon }` |
 
 ```json
 { "ok": true, "data": {
-  "location": { "lat": 10.8231, "lon": 106.6297, "timezone": "Asia/Ho_Chi_Minh" },
+  "location": { "lat": 10.8231, "lon": 106.6297, "timezone": "Etc/GMT-7" },
   "units": { "temperature": "C", "windSpeed": "m/s", "visibility": "m", "rain": "mm/h" },
   "observedAt": "2026-08-09T01:39:20.000Z",
   "cachedUntil": "2026-08-09T01:49:20.000Z",
-  "temperature": 30.03, "humidity": 78, "uvi": 5.21, "visibility": 10000,
+  "temperature": 30.03, "humidity": 78, "uvi": null, "visibility": 10000,
   "windSpeed": 6.63, "windDeg": 251, "windDirection": "WSW",
-  "rain1h": 0.14, "precipitationProbability": 0.79,
+  "rain1h": 0.14, "precipitationProbability": null,
   "weatherDescription": "light rain",
   "weather": [{ "id": 500, "main": "Rain", "description": "light rain", "icon": "10d" }]
 } }
@@ -433,7 +433,7 @@ FE dùng `weather[0].icon` để hiển thị icon: `01d`/`01n` (trời quang ng
 
 ## 8. `GET /v1/weather/forecast`
 
-Dự báo theo giờ và theo ngày.
+Dự báo 5 ngày, bước 3 giờ. Nguồn: OpenWeather **5 Day / 3 Hour Forecast 2.5** (`/data/2.5/forecast`).
 
 **Input (query):** giống mục 7 (`lat`, `lon`, `units`).
 
@@ -443,24 +443,26 @@ Dự báo theo giờ và theo ngày.
 | --- | --- | --- |
 | `location`, `units` | object | Như mục 7 |
 | `cachedUntil` | string \| null | ISO UTC (cache 20 phút — tạm thời cho giai đoạn test) |
-| `hourly` | array | **~48 điểm**, mỗi điểm cách 1 giờ |
-| `daily` | array | **10 điểm**, mỗi điểm 1 ngày |
+| `hourly` | array | **≤ 40 điểm**, mỗi điểm cách **3 giờ** (không phải 1 giờ) |
+| `daily` | array | **≤ 5 điểm**, backend tự gom từ `hourly` theo ngày địa phương |
 
 Mỗi điểm trong `hourly` / `daily`:
 
 | Field | Kiểu | Đơn vị |
 | --- | --- | --- |
-| `time` | string | ISO UTC |
-| `temp` | number \| null | theo `units.temperature`. Với `daily` là nhiệt độ **ban ngày** |
+| `time` | string | ISO UTC. `daily` là **12:00 giờ địa phương** của ngày đó |
+| `temp` | number \| null | theo `units.temperature`. `daily` lấy từ điểm gần 12:00 nhất |
 | `humidity` | number \| null | **%** |
-| `uvi` | number \| null | chỉ số UV |
-| `visibility` | number \| null | **mét** — `daily` thường `null` |
-| `windSpeed` | number \| null | theo `units.windSpeed` |
+| `uvi` | **luôn `null`** | 5 Day / 3 Hour không có chỉ số UV |
+| `visibility` | number \| null | **mét** |
+| `windSpeed` | number \| null | theo `units.windSpeed`. `daily` là **giá trị lớn nhất trong ngày** |
 | `windDeg` | number \| null | **độ 0–360** |
 | `windDirection` | string \| null | `N`…`NNW` |
-| `pop` | number \| null | **0–1** — `daily` thường `null` |
-| `rain1hMm` | number \| null | **mm** — **chỉ `hourly` có**, `daily` luôn `null` |
+| `pop` | number \| null | **0–1**. `daily` là **giá trị lớn nhất trong ngày** |
+| `rain1hMm` | number \| null | `hourly`: **mm/h** (tổng 3 giờ của provider chia 3). `daily`: **tổng mm cả ngày** |
 | `weather` | array | `{ id, main, description, icon }` |
+
+**Lưu ý cho FE:** `hourly` bước 3 giờ nên biểu đồ theo giờ phải nội suy hoặc vẽ theo mốc 3 giờ. `daily` do backend gom, ngày đầu tiên có thể thiếu slot nếu gọi vào buổi chiều.
 
 **Lỗi:** 400 · 502.
 
@@ -617,8 +619,8 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | `/cone` | NHC KMZ cone / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 12.3 |
 | `/spaghetti` | NHC A-deck `ftp.nhc.noaa.gov/atcf/aid_public` | Bão trong **mùa hiện tại** | `nhc:AL012026`, `nhc:AL022026` |
 | `/history-track` | NHC B-deck `atcf/archive/{year}` / GDACS | Bão của **mùa trước** | `nhc:AL052025`, `nhc:AL092025`, `nhc:EP032025` |
-| `/weather/current` | OpenWeather One Call 4.0 | **Luôn có**, mọi lat/lon | — |
-| `/weather/forecast` | OpenWeather One Call 4.0 | **Luôn có** | — |
+| `/weather/current` | OpenWeather Current Weather Data 2.5 | **Luôn có**, mọi lat/lon | — |
+| `/weather/forecast` | OpenWeather 5 Day / 3 Hour Forecast 2.5 | **Luôn có** | — |
 | `/map-tiles/...` | OpenWeather tile | **Luôn có** | — |
 | `/radar` | RainViewer | **Luôn có** | — |
 | `/v1/devices`, subscription | MongoDB (tự tạo) | Cần Mongo connected | Tự tạo token hex 64 ký tự |
@@ -648,7 +650,7 @@ Fixture mode phủ luôn `/spaghetti` và weather, dữ liệu **đồng bộ v�
 | --- | --- |
 | `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho `nhc:AL022026` và `nhc:EP072026`; mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. `stormId` NHC khác → `not_available`; `gdacs:*` → `not_supported`. |
 | `/v1/weather/current` | Tọa độ **trong bán kính 400 km** quanh một bão fixture trả thời tiết bão (`Thunderstorm`, gió theo đúng `windSpeed` của bão đó, mưa lớn, tầm nhìn giảm, `pop` tới 1). Ngoài bán kính trả ngày quang mây. |
-| `/v1/weather/forecast` | 48 điểm `hourly` (cách 1 giờ) + 10 điểm `daily` (12:00 UTC mỗi ngày), cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
+| `/v1/weather/forecast` | 40 điểm `hourly` (cách 3 giờ) + 5 điểm `daily` (12:00 UTC mỗi ngày), cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
 
 Ví dụ: gọi `/v1/weather/current?lat=19.4&lon=-116.6` (tâm `nhc:EP072026`) sẽ ra gió ~51 m/s đúng với cấp 3 của bão đó trong `/v1/storms`. Data không phụ thuộc đồng hồ ngoài mốc giờ, cùng input luôn ra cùng output → chụp snapshot UI ổn định. Fixture weather không cần `OPENWEATHER_API_KEY`.
 
