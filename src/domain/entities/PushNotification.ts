@@ -18,6 +18,7 @@ interface PushNotificationReceipt {
     title: string;
     description: string;
     sent: boolean;
-    stormId?: string;
-    type?: StormAlertType;
+    /** Always present so clients never branch on a missing key; null when the push carried none. */
+    stormId: string | null;
+    type: StormAlertType | null;
 }

@@ -6,7 +6,7 @@ import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
 import StormRepository from "../../domain/repositories/IStormRepository.js";
 
-export { FixtureStormRepository as default };
+export { FixtureStormRepository as default, ACTIVE_STORMS as FIXTURE_ACTIVE_STORMS };
 
 /**
  * Stable, representative storm profiles for staging and UI testing. They are

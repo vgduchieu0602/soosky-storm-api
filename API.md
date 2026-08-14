@@ -599,7 +599,7 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | `stormId` | Không | `nhc:XX######` hoặc `gdacs:TC:<eventId>:<episodeId>`. Gửi kèm thì APNs custom payload có `stormId` để FE mở đúng màn hình bão. |
 | `type` | Không | Một trong 6 giá trị alert ở bảng mục 11: `new_storm`, `category_change`, `track_change`, `alert_level_change`, `watch_warning`, `storm_dissipated`. Giá trị khác → 400 `BAD_REQUEST`. |
 
-**Output 200:** `{ "title": "...", "description": "...", "sent": true }` — có thêm `"stormId"` / `"type"` khi request gửi kèm field tương ứng.
+**Output 200:** `{ "title": "...", "description": "...", "sent": true, "stormId": "nhc:EP072026", "type": "new_storm" }` — `stormId` và `type` **luôn có trong response**, bằng `null` khi request không gửi kèm.
 
 **Lỗi:** 400 `INVALID_DEVICE_TOKEN` (token giả hoặc APNs từ chối) · 502 `PUSH_UNAVAILABLE` · 503 `PUSH_NOT_CONFIGURED`.
 
@@ -642,7 +642,17 @@ gdacs:TC:1001297:51  active, category 5
 nhc:EP032025         historical, dissipated
 ```
 
-Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode để không gửi push notification giả tới người dùng thật. `/spaghetti`, weather, map tile và radar vẫn dùng upstream riêng.
+Fixture mode phủ luôn `/spaghetti` và weather, dữ liệu **đồng bộ với 3 bão fixture**:
+
+| API | Data fake |
+| --- | --- |
+| `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho `nhc:AL022026` và `nhc:EP072026`; mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. `stormId` NHC khác → `not_available`; `gdacs:*` → `not_supported`. |
+| `/v1/weather/current` | Tọa độ **trong bán kính 400 km** quanh một bão fixture trả thời tiết bão (`Thunderstorm`, gió theo đúng `windSpeed` của bão đó, mưa lớn, tầm nhìn giảm, `pop` tới 1). Ngoài bán kính trả ngày quang mây. |
+| `/v1/weather/forecast` | 48 điểm `hourly` (cách 1 giờ) + 10 điểm `daily` (12:00 UTC mỗi ngày), cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
+
+Ví dụ: gọi `/v1/weather/current?lat=19.4&lon=-116.6` (tâm `nhc:EP072026`) sẽ ra gió ~51 m/s đúng với cấp 3 của bão đó trong `/v1/storms`. Data không phụ thuộc đồng hồ ngoài mốc giờ, cùng input luôn ra cùng output → chụp snapshot UI ổn định. Fixture weather không cần `OPENWEATHER_API_KEY`.
+
+Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode để không gửi push notification giả tới người dùng thật. Map tile và radar vẫn dùng upstream riêng (luôn có data, không phụ thuộc mùa bão).
 
 ### 12.4 Data luôn có — test được ngay
 

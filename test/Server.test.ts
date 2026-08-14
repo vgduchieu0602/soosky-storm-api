@@ -1438,6 +1438,8 @@ test("POST /v1/notifications/send delivers the notification and returns the stan
             title: "Storm Warning",
             description: "Hurricane Erin may affect your area.",
             sent: true,
+            stormId: null,
+            type: null,
         },
         cacheStatus: "bypass",
     });

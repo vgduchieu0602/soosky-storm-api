@@ -7,6 +7,8 @@ import CachedMapTileRepository from "./adapters/cache/CachedMapTileRepository.js
 import CachedRadarRepository from "./adapters/cache/CachedRadarRepository.js";
 import CachedHistoricalStormTrackRepository from "./adapters/cache/CachedHistoricalStormTrackRepository.js";
 import FixtureStormRepository from "./adapters/fixture/FixtureStormRepository.js";
+import FixtureSpaghettiRepository from "./adapters/fixture/FixtureSpaghettiRepository.js";
+import FixtureWeatherRepository from "./adapters/fixture/FixtureWeatherRepository.js";
 import GdacsStormConeRepository from "./adapters/gdacs/GdacsStormConeRepository.js";
 import GdacsStormRepository from "./adapters/gdacs/GdacsStormRepository.js";
 import { connectMongoInBackground, getDatabaseStatus } from "./adapters/mongo/connectMongo.js";
@@ -99,16 +101,20 @@ const stormRepository = new CachedStormRepository(
     STORM_CACHE_TTL_MS,
     ACTIVE_STORMS_CACHE_TTL_MS,
 );
-const nhcSpaghettiRepository = new NhcSpaghettiRepository(NHC_ATCF_AID_PUBLIC_URL);
-const spaghettiRepository = new CachedSpaghettiRepository(nhcSpaghettiRepository, STORM_CACHE_TTL_MS);
+const sourceSpaghettiRepository = fixtureStormRepository
+    ? new FixtureSpaghettiRepository()
+    : new NhcSpaghettiRepository(NHC_ATCF_AID_PUBLIC_URL);
+const spaghettiRepository = new CachedSpaghettiRepository(sourceSpaghettiRepository, STORM_CACHE_TTL_MS);
 
-const openWeatherForecastRepository = new OpenWeatherForecastRepository(OPENWEATHER_API_KEY);
+// One fixture instance serves both weather ports so the forecast and the current
+// observation agree with each other and with the fixture storm positions.
+const fixtureWeatherRepository = fixtureStormRepository ? new FixtureWeatherRepository() : null;
 const forecastWeatherRepository = new CachedForecastWeatherRepository(
-    openWeatherForecastRepository,
+    fixtureWeatherRepository ?? new OpenWeatherForecastRepository(OPENWEATHER_API_KEY),
     FORECAST_WEATHER_CACHE_TTL_MS,
 );
 const currentWeatherRepository = new CachedCurrentWeatherRepository(
-    new OpenWeatherCurrentWeatherRepository(OPENWEATHER_API_KEY),
+    fixtureWeatherRepository ?? new OpenWeatherCurrentWeatherRepository(OPENWEATHER_API_KEY),
     CURRENT_WEATHER_CACHE_TTL_MS,
 );
 const mapTileRepository = new CachedMapTileRepository(
