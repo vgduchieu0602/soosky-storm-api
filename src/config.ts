@@ -26,6 +26,7 @@ const PRODUCTION_CACHE_TTL_MS = {
 };
 
 const config = {
+    stormDataMode: readStormDataMode(),
     http: {
         port: readPositiveInt("HTTP_PORT", 3000),
         host: process.env.HTTP_HOST || "0.0.0.0",
@@ -83,6 +84,24 @@ const config = {
         maxTrackedIps: readPositiveInt("RATE_LIMIT_MAX_TRACKED_IPS", 10_000),
     },
 };
+
+function readStormDataMode (): "live" | "fixture" {
+    const raw = process.env.STORM_DATA_MODE;
+
+    if (raw === undefined || !raw.trim()) {
+        return "live";
+    }
+
+    if (raw.trim().toLowerCase() === "fixture") {
+        return "fixture";
+    }
+
+    if (raw.trim().toLowerCase() === "live") {
+        return "live";
+    }
+
+    throw new InvalidEnvVarError("STORM_DATA_MODE", "'live' or 'fixture'");
+}
 
 function readPositiveInt (key: string, fallback: number): number {
     const raw = process.env[key];

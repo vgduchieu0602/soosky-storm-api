@@ -17,6 +17,8 @@ import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
 import SendPushNotificationUseCase from "../domain/use-cases/notification/SendPushNotificationUseCase.js";
 import PushNotificationError from "../domain/errors/PushNotificationError.js";
+import PushNotification from "../domain/entities/PushNotification.js";
+import { STORM_ALERT_TYPES, StormAlertType } from "../domain/entities/StormAlert.js";
 import StorageUnavailableError from "../domain/errors/StorageUnavailableError.js";
 import { isDeviceToken } from "../domain/entities/Device.js";
 import { MAX_REGION_RADIUS_KM, MIN_REGION_RADIUS_KM } from "../domain/entities/RegionSubscription.js";
@@ -320,11 +322,23 @@ class Server {
 
     private async _POST_sendNotification (request: Request, response: Response): Promise<void> {
         const payload = readJsonObject(request);
-        const data = await this._useCases.notification.sendPushNotification.execute({
+        const notification: PushNotification = {
             deviceToken: readRequiredField(payload, "deviceToken", 200),
             title: readRequiredField(payload, "title", 256),
             description: readRequiredField(payload, "description", 2048),
-        });
+        };
+        const stormId = readOptionalStormId(payload);
+        const alertType = readOptionalAlertType(payload);
+
+        if (stormId !== null) {
+            notification.stormId = stormId;
+        }
+
+        if (alertType !== null) {
+            notification.type = alertType;
+        }
+
+        const data = await this._useCases.notification.sendPushNotification.execute(notification);
 
         this._sendData(response, data);
     }
@@ -516,6 +530,34 @@ function readStormId (body: Record<string, unknown>): string {
     }
 
     return stormId;
+}
+
+function readOptionalStormId (body: Record<string, unknown>): string | null {
+    const stormId = body.stormId;
+
+    if (stormId === undefined || stormId === null) {
+        return null;
+    }
+
+    if (typeof stormId !== "string" || !isTrackStormId(stormId)) {
+        throw new ClientError("Field 'stormId' is invalid.");
+    }
+
+    return stormId;
+}
+
+function readOptionalAlertType (body: Record<string, unknown>): StormAlertType | null {
+    const type = body.type;
+
+    if (type === undefined || type === null) {
+        return null;
+    }
+
+    if (!STORM_ALERT_TYPES.some((alertType) => alertType === type)) {
+        throw new ClientError("Field 'type' must be one of: " + STORM_ALERT_TYPES.join(", ") + ".");
+    }
+
+    return type as StormAlertType;
 }
 
 function readStormIds (body: Record<string, unknown>): string[] {

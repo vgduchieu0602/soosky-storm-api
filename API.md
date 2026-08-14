@@ -587,7 +587,7 @@ Scheduler gửi push cho device theo dõi bão hoặc nằm trong vùng đã đ�
 | `watch_warning` | Watch/Warning | NHC phát hành hoặc cập nhật Storm Surge Watch/Warning advisory. |
 | `storm_dissipated` | Storm dissipated | Cơn bão không còn trong danh sách active. |
 
-Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", "trackingId" }` để FE mở đúng màn hình bão. `POST /v1/notifications/send` là push thủ công nên không tự thêm các trường này.
+Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", "trackingId" }` để FE mở đúng màn hình bão. `POST /v1/notifications/send` là push thủ công nên chỉ đính kèm `stormId` / `type` khi request có gửi field tương ứng (không có `trackingId`).
 
 ### `POST /v1/notifications/send`
 
@@ -596,8 +596,10 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | `deviceToken` | Có | hex 64–200 ký tự |
 | `title` | Có | không rỗng, ≤ **256** ký tự |
 | `description` | Có | không rỗng, ≤ **2048** ký tự |
+| `stormId` | Không | `nhc:XX######` hoặc `gdacs:TC:<eventId>:<episodeId>`. Gửi kèm thì APNs custom payload có `stormId` để FE mở đúng màn hình bão. |
+| `type` | Không | Một trong 6 giá trị alert ở bảng mục 11: `new_storm`, `category_change`, `track_change`, `alert_level_change`, `watch_warning`, `storm_dissipated`. Giá trị khác → 400 `BAD_REQUEST`. |
 
-**Output 200:** `{ "title": "...", "description": "...", "sent": true }`
+**Output 200:** `{ "title": "...", "description": "...", "sent": true }` — có thêm `"stormId"` / `"type"` khi request gửi kèm field tương ứng.
 
 **Lỗi:** 400 `INVALID_DEVICE_TOKEN` (token giả hoặc APNs từ chối) · 502 `PUSH_UNAVAILABLE` · 503 `PUSH_NOT_CONFIGURED`.
 
@@ -610,9 +612,9 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | API | Nguồn dữ liệu | Điều kiện có data | ID test đã verify |
 | --- | --- | --- | --- |
 | `/health` | Chính app | **Luôn có** | — |
-| `/v1/storms` | NHC `CurrentStorms.json` + GDACS `geteventlist` | Phải có bão **đang hoạt động** | Gọi trực tiếp, xem mục 12.3 |
-| `/track` | NHC KMZ forecast track / GDACS `getgeometry` | Bão phải **đang active** | Cần override, mục 12.4 |
-| `/cone` | NHC KMZ cone / GDACS `getgeometry` | Bão phải **đang active** | Cần override, mục 12.4 |
+| `/v1/storms` | NHC `CurrentStorms.json` + GDACS `geteventlist` | Phải có bão **đang hoạt động** | Fixture mode: luôn có data, xem mục 12.3 |
+| `/track` | NHC KMZ forecast track / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 12.3 |
+| `/cone` | NHC KMZ cone / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 12.3 |
 | `/spaghetti` | NHC A-deck `ftp.nhc.noaa.gov/atcf/aid_public` | Bão trong **mùa hiện tại** | `nhc:AL012026`, `nhc:AL022026` |
 | `/history-track` | NHC B-deck `atcf/archive/{year}` / GDACS | Bão của **mùa trước** | `nhc:AL052025`, `nhc:AL092025`, `nhc:EP032025` |
 | `/weather/current` | OpenWeather One Call 4.0 | **Luôn có**, mọi lat/lon | — |
@@ -623,7 +625,26 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | `/notifications/send` | APNs | Cần device token thật từ app iOS | — |
 
 
-### 12.3 Data luôn có — test được ngay
+### 12.3 Fixture mode — data bão luôn có cho staging/test
+
+Khi cần FE/QA test ổn định, không phụ thuộc mùa bão hay upstream, cấu hình:
+
+```bash
+STORM_DATA_MODE=fixture
+```
+
+Sau khi restart, các API storm sau luôn có dữ liệu local, dựa trên các profile bão thật/lịch sử: `/v1/storms`, `/track`, `/cone`, `/history-track`, `GET /v1/storms/demo` và `POST /v1/storms/tracking`. Các `stormId` fixture ổn định để FE có thể subscribe và test luồng detail:
+
+```text
+nhc:AL022026         active, tropical storm
+nhc:EP072026         active, category 3
+gdacs:TC:1001297:51  active, category 5
+nhc:EP032025         historical, dissipated
+```
+
+Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode để không gửi push notification giả tới người dùng thật. `/spaghetti`, weather, map tile và radar vẫn dùng upstream riêng.
+
+### 12.4 Data luôn có — test được ngay
 
 ```bash
 BASE=https://project3.vuonghieu.site
@@ -656,7 +677,7 @@ Xem danh sách đầy đủ: <https://ftp.nhc.noaa.gov/atcf/archive/2025/>
 
 Danh sách bão dùng được cho **spaghetti**: xem <https://ftp.nhc.noaa.gov/atcf/aid_public/> — file `a{basin}{NN}{year}.dat.gz` nào có ở đó thì `nhc:{BASIN}{NN}{YEAR}` gọi được.
 
-### 12.4 Giả lập bão NHC đang active để test `/track` và `/cone`
+### 12.5 Giả lập bão NHC đang active để test `/track` và `/cone`
 
 `/track` và `/cone` **chỉ** đọc từ danh sách bão active. Ngoài mùa bão thì không có gì để test. Cách giả lập: trỏ app vào một snapshot NHC đã lưu trữ.
 
@@ -725,6 +746,6 @@ Ví dụ với `nhc:EP072026`:
 
 Format hai file **giống nhau hoàn toàn**, parser hiện tại đọc được cả hai. Chỉ thiếu bước thử `btk/` trước khi thử `archive/`.
 
-Trong khi chờ sửa, dùng bão **mùa 2025** để test history-track (mục 12.3).
+Trong khi chờ sửa, dùng bão **mùa 2025** để test history-track (mục 12.4).
 
 ---

@@ -144,11 +144,9 @@ test("detects a watch or warning change", async () => {
     assert.deepEqual(result.alerts.map((alert) => alert.type), ["watch_warning"]);
     assert.equal(world.push.sent[0]?.title, "Genevieve watch/warning updated");
     assert.match(world.push.sent[0]?.description ?? "", /Hurricane Warning/);
-    assert.deepEqual(world.push.sent[0]?.data, {
-        type: "watch_warning",
-        stormId: STORM_ID,
-        trackingId: STORM_ID,
-    });
+    assert.equal(world.push.sent[0]?.stormId, STORM_ID);
+    assert.equal(world.push.sent[0]?.type, "watch_warning");
+    assert.deepEqual(world.push.sent[0]?.data, { trackingId: STORM_ID });
 });
 
 test("detects a dissipated storm and clears its stored state", async () => {

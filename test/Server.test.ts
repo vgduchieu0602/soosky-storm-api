@@ -1448,6 +1448,76 @@ test("POST /v1/notifications/send delivers the notification and returns the stan
     });
 });
 
+test("POST /v1/notifications/send forwards an optional stormId and type and echoes them back", async () => {
+    const response = await sendNotification({
+        deviceToken: VALID_DEVICE_TOKEN,
+        title: "Storm Warning",
+        description: "Hurricane Erin may affect your area.",
+        stormId: "nhc:EP072026",
+        type: "category_change",
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+        ok: true,
+        data: {
+            title: "Storm Warning",
+            description: "Hurricane Erin may affect your area.",
+            sent: true,
+            stormId: "nhc:EP072026",
+            type: "category_change",
+        },
+        cacheStatus: "bypass",
+    });
+    assert.deepEqual(pushNotificationRepository.sent.at(-1), {
+        deviceToken: VALID_DEVICE_TOKEN,
+        title: "Storm Warning",
+        description: "Hurricane Erin may affect your area.",
+        stormId: "nhc:EP072026",
+        type: "category_change",
+    });
+});
+
+test("POST /v1/notifications/send rejects an unknown alert type", async (context) => {
+    const invalidTypes: unknown[] = ["storm_update", "NEW_STORM", "", 7];
+
+    for (const type of invalidTypes) {
+        await context.test(JSON.stringify(type), async () => {
+            const before = pushNotificationRepository.sent.length;
+            const response = await sendNotification({
+                deviceToken: VALID_DEVICE_TOKEN,
+                title: "Storm Warning",
+                description: "Hurricane Erin may affect your area.",
+                type,
+            });
+
+            assert.equal(response.status, 400);
+            assert.equal((await response.json()).code, "BAD_REQUEST");
+            assert.equal(pushNotificationRepository.sent.length, before);
+        });
+    }
+});
+
+test("POST /v1/notifications/send rejects an invalid stormId", async (context) => {
+    const invalidStormIds: unknown[] = ["EP072026", "nhc:ep072026", "gdacs:TC:0:51", 42, ""];
+
+    for (const stormId of invalidStormIds) {
+        await context.test(JSON.stringify(stormId), async () => {
+            const before = pushNotificationRepository.sent.length;
+            const response = await sendNotification({
+                deviceToken: VALID_DEVICE_TOKEN,
+                title: "Storm Warning",
+                description: "Hurricane Erin may affect your area.",
+                stormId,
+            });
+
+            assert.equal(response.status, 400);
+            assert.equal((await response.json()).code, "BAD_REQUEST");
+            assert.equal(pushNotificationRepository.sent.length, before);
+        });
+    }
+});
+
 test("POST /v1/notifications/send never echoes the device token", async () => {
     const response = await sendNotification({
         deviceToken: VALID_DEVICE_TOKEN,

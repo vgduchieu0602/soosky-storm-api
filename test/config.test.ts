@@ -11,6 +11,27 @@ const CACHE_TTL_KEYS = [
     "RADAR_CACHE_TTL_MS",
 ] as const;
 
+test("storm data mode uses live providers by default and accepts the fixture override", async () => {
+    const previousValue = process.env.STORM_DATA_MODE;
+
+    try {
+        process.env.STORM_DATA_MODE = "";
+        const { default: liveConfig } = await import("../src/config.ts?storm-data-mode-live");
+
+        process.env.STORM_DATA_MODE = "fixture";
+        const { default: fixtureConfig } = await import("../src/config.ts?storm-data-mode-fixture");
+
+        assert.equal(liveConfig.stormDataMode, "live");
+        assert.equal(fixtureConfig.stormDataMode, "fixture");
+    } finally {
+        if (previousValue === undefined) {
+            delete process.env.STORM_DATA_MODE;
+        } else {
+            process.env.STORM_DATA_MODE = previousValue;
+        }
+    }
+});
+
 test("cache TTLs default to production values when the environment does not override them", async () => {
     const previousValues = new Map(CACHE_TTL_KEYS.map((key) => [key, process.env[key]]));
 

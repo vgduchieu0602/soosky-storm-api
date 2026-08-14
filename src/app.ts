@@ -6,6 +6,7 @@ import CachedForecastWeatherRepository from "./adapters/cache/CachedForecastWeat
 import CachedMapTileRepository from "./adapters/cache/CachedMapTileRepository.js";
 import CachedRadarRepository from "./adapters/cache/CachedRadarRepository.js";
 import CachedHistoricalStormTrackRepository from "./adapters/cache/CachedHistoricalStormTrackRepository.js";
+import FixtureStormRepository from "./adapters/fixture/FixtureStormRepository.js";
 import GdacsStormConeRepository from "./adapters/gdacs/GdacsStormConeRepository.js";
 import GdacsStormRepository from "./adapters/gdacs/GdacsStormRepository.js";
 import { connectMongoInBackground, getDatabaseStatus } from "./adapters/mongo/connectMongo.js";
@@ -82,7 +83,13 @@ const gdacsStormRepository = new GdacsStormRepository(
     GDACS_EVENT_DATA_URL,
     GDACS_GEOMETRY_URL,
 );
-const sourceStormRepository = new CompositeStormRepository(
+// Fixture mode is deliberately selected at composition time. Production keeps
+// using providers by default; staging/test can serve deterministic local data
+// without depending on an active storm or an upstream service.
+const fixtureStormRepository = config.stormDataMode === "fixture"
+    ? new FixtureStormRepository()
+    : null;
+const sourceStormRepository = fixtureStormRepository ?? new CompositeStormRepository(
     nhcStormRepository,
     gdacsStormConeRepository,
     gdacsStormRepository,
@@ -116,7 +123,7 @@ const regionSubscriptionRepository = new MongoRegionSubscriptionRepository();
 const stormStateRepository = new MongoStormStateRepository();
 const alertDeliveryRepository = new MongoAlertDeliveryRepository();
 const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
-    new CompositeHistoricalStormTrackRepository(
+    fixtureStormRepository ?? new CompositeHistoricalStormTrackRepository(
         new NhcHistoricalStormTrackRepository(NHC_CURRENT_STORMS_URL, fetch, NHC_ATCF_ARCHIVE_URL),
         gdacsStormRepository,
     ),
@@ -176,12 +183,14 @@ const rateLimiter = new RateLimiter(config.rateLimit);
 
         void connectMongoInBackground();
 
-        if (config.alerts.enabled) {
+        if (config.alerts.enabled && config.stormDataMode === "live") {
             startAlertScheduler(detectStormAlerts, {
                 intervalMs: config.alerts.pollIntervalMs,
                 isReady: isMongoConnected,
             });
             console.log("Storm alert detection every " + config.alerts.pollIntervalMs + " ms.");
+        } else if (config.alerts.enabled) {
+            console.log("Storm alert detection disabled while STORM_DATA_MODE=fixture.");
         }
     } catch (error) {
         rateLimiter.dispose();

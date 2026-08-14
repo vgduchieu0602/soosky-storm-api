@@ -114,9 +114,9 @@ class DetectStormAlertsUseCase {
                     deviceToken,
                     title: message.title,
                     description: message.description,
+                    stormId: alert.stormId,
+                    type: alert.type,
                     data: {
-                        type: alert.type,
-                        stormId: alert.stormId,
                         trackingId: alert.trackingId,
                     },
                 });

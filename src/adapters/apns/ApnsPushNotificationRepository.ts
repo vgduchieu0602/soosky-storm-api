@@ -100,6 +100,8 @@ class ApnsPushNotificationRepository implements PushNotificationRepository {
                         sound: "default",
                     },
                     ...notification.data,
+                    ...(notification.stormId === undefined ? {} : { stormId: notification.stormId }),
+                    ...(notification.type === undefined ? {} : { type: notification.type }),
                 }),
             });
         } catch (error) {

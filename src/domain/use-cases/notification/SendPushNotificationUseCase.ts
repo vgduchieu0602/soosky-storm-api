@@ -9,10 +9,20 @@ class SendPushNotificationUseCase {
     public async execute (notification: PushNotification): Promise<PushNotificationReceipt> {
         await this._pushNotificationRepo.sendPushNotification(notification);
 
-        return {
+        const receipt: PushNotificationReceipt = {
             title: notification.title,
             description: notification.description,
             sent: true,
         };
+
+        if (notification.stormId !== undefined) {
+            receipt.stormId = notification.stormId;
+        }
+
+        if (notification.type !== undefined) {
+            receipt.type = notification.type;
+        }
+
+        return receipt;
     }
 }
