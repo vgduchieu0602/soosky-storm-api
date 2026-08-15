@@ -20,7 +20,7 @@ test("fixture spaghetti repository fans three models out of a fixture storm cent
 
 test("fixture spaghetti repository reports a storm without model data as not available", async () => {
     const repository = new FixtureSpaghettiRepository();
-    const spaghetti = await repository.getStormSpaghetti("nhc:AL012026");
+    const spaghetti = await repository.getStormSpaghetti("nhc:AL092025");
 
     assert.equal(spaghetti.availability, "not_available");
     assert.deepEqual(spaghetti.models, []);
