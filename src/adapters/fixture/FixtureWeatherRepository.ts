@@ -17,7 +17,6 @@ const DAY_MS = 86_400_000;
 /** Mirrors OpenWeather 5 day / 3 hour: one point every three hours, folded into 5 days. */
 const STEP_HOURS = 3;
 const STEP_MS = STEP_HOURS * HOUR_MS;
-const HOURLY_POINTS = 40;
 const DAILY_POINTS = 5;
 const SLOTS_PER_DAY = 24 / STEP_HOURS;
 /** Inside this radius the weather reflects the fixture storm instead of a calm day. */
@@ -79,16 +78,19 @@ class FixtureWeatherRepository implements CurrentWeatherRepository, ForecastWeat
     }
 
     public async getForecast (query: ForecastWeatherQuery): Promise<ForecastWeather> {
-        const start = floorToStep(this._now());
-        const firstDay = Math.floor(start / DAY_MS) * DAY_MS;
+        const now = this._now();
+        const firstDay = Math.floor(now / DAY_MS) * DAY_MS;
+        // Same rule as the provider adapter: today's slots that have not ended yet,
+        // including the one in progress.
+        const remainingSlots = Array.from({ length: SLOTS_PER_DAY }, (_value, index) => {
+            return firstDay + (index * STEP_MS);
+        }).filter((time) => time + STEP_MS > now);
 
         return {
             location: toLocation(query.lat, query.lon),
             units: getUnits(query.units),
             cachedUntil: null,
-            hourly: Array.from({ length: HOURLY_POINTS }, (_value, index) => {
-                return toPoint(query, start + (index * STEP_MS));
-            }),
+            hourly: remainingSlots.map((time) => toPoint(query, time)),
             daily: Array.from({ length: DAILY_POINTS }, (_value, index) => {
                 return toDailyPoint(query, firstDay + (index * DAY_MS));
             }),

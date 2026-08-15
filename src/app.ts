@@ -9,6 +9,12 @@ import CachedHistoricalStormTrackRepository from "./adapters/cache/CachedHistori
 import FixtureStormRepository from "./adapters/fixture/FixtureStormRepository.js";
 import FixtureSpaghettiRepository from "./adapters/fixture/FixtureSpaghettiRepository.js";
 import FixtureWeatherRepository from "./adapters/fixture/FixtureWeatherRepository.js";
+import FixtureMapTileRepository from "./adapters/fixture/FixtureMapTileRepository.js";
+import FixtureRadarRepository from "./adapters/fixture/FixtureRadarRepository.js";
+import FixturePushNotificationRepository from "./adapters/fixture/FixturePushNotificationRepository.js";
+import FixtureDeviceRepository from "./adapters/fixture/FixtureDeviceRepository.js";
+import FixtureStormSubscriptionRepository from "./adapters/fixture/FixtureStormSubscriptionRepository.js";
+import FixtureRegionSubscriptionRepository from "./adapters/fixture/FixtureRegionSubscriptionRepository.js";
 import GdacsStormConeRepository from "./adapters/gdacs/GdacsStormConeRepository.js";
 import GdacsStormRepository from "./adapters/gdacs/GdacsStormRepository.js";
 import { connectMongoInBackground, getDatabaseStatus } from "./adapters/mongo/connectMongo.js";
@@ -118,14 +124,23 @@ const currentWeatherRepository = new CachedCurrentWeatherRepository(
     CURRENT_WEATHER_CACHE_TTL_MS,
 );
 const mapTileRepository = new CachedMapTileRepository(
-    new OpenWeatherMapTileRepository(OPENWEATHER_API_KEY),
+    fixtureStormRepository ? new FixtureMapTileRepository() : new OpenWeatherMapTileRepository(OPENWEATHER_API_KEY),
     MAP_TILE_CACHE_TTL_MS,
 );
-const radarRepository = new CachedRadarRepository(new RainViewerRadarRepository(), RADAR_CACHE_TTL_MS);
-const pushNotificationRepository = new ApnsPushNotificationRepository(config.apns);
-const deviceRepository = new MongoDeviceRepository();
-const stormSubscriptionRepository = new MongoStormSubscriptionRepository();
-const regionSubscriptionRepository = new MongoRegionSubscriptionRepository();
+const radarRepository = new CachedRadarRepository(
+    fixtureStormRepository ? new FixtureRadarRepository() : new RainViewerRadarRepository(),
+    RADAR_CACHE_TTL_MS,
+);
+const pushNotificationRepository = fixtureStormRepository
+    ? new FixturePushNotificationRepository()
+    : new ApnsPushNotificationRepository(config.apns);
+const deviceRepository = fixtureStormRepository ? new FixtureDeviceRepository() : new MongoDeviceRepository();
+const stormSubscriptionRepository = fixtureStormRepository
+    ? new FixtureStormSubscriptionRepository()
+    : new MongoStormSubscriptionRepository();
+const regionSubscriptionRepository = fixtureStormRepository
+    ? new FixtureRegionSubscriptionRepository()
+    : new MongoRegionSubscriptionRepository();
 const stormStateRepository = new MongoStormStateRepository();
 const alertDeliveryRepository = new MongoAlertDeliveryRepository();
 const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
@@ -182,12 +197,19 @@ const rateLimiter = new RateLimiter(config.rateLimit);
 
 (async () => {
     try {
-        const server = new Server(config, rateLimiter, useCases, getDatabaseStatus);
+        const server = new Server(
+            config,
+            rateLimiter,
+            useCases,
+            fixtureStormRepository ? () => "fixture" : getDatabaseStatus,
+        );
 
         await server.listen();
         console.log("Soosky Storm API running on http://" + HTTP_HOST + ":" + HTTP_PORT);
 
-        void connectMongoInBackground();
+        if (!fixtureStormRepository) {
+            void connectMongoInBackground();
+        }
 
         if (config.alerts.enabled && config.stormDataMode === "live") {
             startAlertScheduler(detectStormAlerts, {

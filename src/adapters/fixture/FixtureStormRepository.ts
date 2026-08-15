@@ -59,6 +59,19 @@ class FixtureStormRepository implements StormRepository, HistoricalStormTrackRep
 
 const ACTIVE_STORMS: readonly StormSummary[] = [
     {
+        stormId: "nhc:AL012026",
+        name: "TROPICAL DEPRESSION ANDREW",
+        source: "nhc",
+        basin: "north_atlantic",
+        lat: 12.6,
+        lon: -45.8,
+        datetime: "2026-08-08T06:00:00.000Z",
+        windSpeed: 30,
+        category: "tropical_depression",
+        alertLevel: null,
+        watchWarning: null,
+    },
+    {
         stormId: "nhc:AL022026",
         name: "TROPICAL STORM BERYL",
         source: "nhc",
@@ -70,6 +83,19 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         category: "tropical_storm",
         alertLevel: null,
         watchWarning: "Storm surge watch/warning advisory 2026-07-19T18:00:00.000Z",
+    },
+    {
+        stormId: "nhc:AL032026",
+        name: "HURRICANE CHARLIE",
+        source: "nhc",
+        basin: "north_atlantic",
+        lat: 25.1,
+        lon: -68.3,
+        datetime: "2026-08-08T12:00:00.000Z",
+        windSpeed: 75,
+        category: "category_1",
+        alertLevel: null,
+        watchWarning: "Hurricane watch for the northern Leeward Islands.",
     },
     {
         stormId: "nhc:EP072026",
@@ -85,6 +111,45 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         watchWarning: null,
     },
     {
+        stormId: "nhc:EP082026",
+        name: "HURRICANE HILDA",
+        source: "nhc",
+        basin: "eastern_north_pacific",
+        lat: 15.8,
+        lon: -109.2,
+        datetime: "2026-08-08T12:00:00.000Z",
+        windSpeed: 120,
+        category: "category_4",
+        alertLevel: null,
+        watchWarning: null,
+    },
+    {
+        stormId: "nhc:CP012026",
+        name: "TROPICAL STORM IONA",
+        source: "nhc",
+        basin: "central_north_pacific",
+        lat: 13.7,
+        lon: -160.4,
+        datetime: "2026-08-08T06:00:00.000Z",
+        windSpeed: 50,
+        category: "tropical_storm",
+        alertLevel: null,
+        watchWarning: null,
+    },
+    {
+        stormId: "nhc:CP022026",
+        name: "HURRICANE KELI",
+        source: "nhc",
+        basin: "central_north_pacific",
+        lat: 17.2,
+        lon: -171.6,
+        datetime: "2026-08-08T12:00:00.000Z",
+        windSpeed: 90,
+        category: "category_2",
+        alertLevel: null,
+        watchWarning: "Tropical storm watch for Johnston Atoll.",
+    },
+    {
         stormId: "gdacs:TC:1001297:51",
         name: "DOLPHIN-26",
         source: "gdacs",
@@ -98,49 +163,31 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         alertLevel: "Orange",
         watchWarning: null,
     },
+    {
+        stormId: "gdacs:TC:1001432:3",
+        name: "MANGKHUT-26",
+        source: "gdacs",
+        basin: null,
+        area: "Philippines, Taiwan",
+        lat: 18.3,
+        lon: 121.4,
+        datetime: "2026-08-08T09:00:00.000Z",
+        windSpeed: 45,
+        category: "tropical_storm",
+        alertLevel: "Red",
+        watchWarning: null,
+    },
 ];
 
-const TRACKS: Readonly<Record<string, StormTrack>> = {
-    "nhc:AL022026": makeNhcTrack("nhc:AL022026", "TROPICAL STORM BERYL", "2026-07-19T18:00:00.000Z", 22.4, -77.8, 60),
-    "nhc:EP072026": makeNhcTrack("nhc:EP072026", "HURRICANE GENEVIEVE", "2026-08-08T12:00:00.000Z", 19.4, -116.6, 100),
-    "gdacs:TC:1001297:51": {
-        stormId: "gdacs:TC:1001297:51",
-        name: "DOLPHIN-26",
-        source: "gdacs",
-        area: "Marshall Islands, Japan, China",
-        issuedAt: "2026-08-08T12:00:00.000Z",
-        cachedUntil: null,
-        observed: [
-            { lat: 24.2, lon: 130.1, datetime: "2026-08-07T12:00:00.000Z", windSpeed: 130, category: "category_4" },
-            { lat: 27, lon: 124.8, datetime: "2026-08-08T12:00:00.000Z", windSpeed: 145, category: "category_5" },
-        ],
-        forecast: [],
-    },
-};
+const TRACKS: Readonly<Record<string, StormTrack>> = Object.fromEntries(ACTIVE_STORMS.map((storm) => [
+    storm.stormId,
+    storm.source === "nhc" ? makeNhcTrack(storm) : makeGdacsTrack(storm),
+]));
 
-const CONES: Readonly<Record<string, StormCone>> = {
-    "nhc:AL022026": makeNhcCone("nhc:AL022026", "2026-07-19T18:00:00.000Z", -77.8, 22.4),
-    "nhc:EP072026": makeNhcCone("nhc:EP072026", "2026-08-08T12:00:00.000Z", -116.6, 19.4),
-    "gdacs:TC:1001297:51": {
-        stormId: "gdacs:TC:1001297:51",
-        source: "gdacs",
-        issuedAt: "2026-08-08T12:00:00.000Z",
-        cachedUntil: null,
-        availability: "available",
-        geometryKind: "gdacs_event_area",
-        geojson: {
-            type: "FeatureCollection",
-            features: [{
-                type: "Feature",
-                properties: { source: "gdacs" },
-                geometry: {
-                    type: "Polygon",
-                    coordinates: [[[121, 24], [129, 24], [129, 30], [121, 30], [121, 24]]],
-                },
-            }],
-        },
-    },
-};
+const CONES: Readonly<Record<string, StormCone>> = Object.fromEntries(ACTIVE_STORMS.map((storm) => [
+    storm.stormId,
+    storm.source === "nhc" ? makeNhcCone(storm) : makeGdacsCone(storm),
+]));
 
 const HISTORICAL_STORMS: Readonly<Record<string, { name: string; history: HistoricalStormTrack["history"] }>> = {
     "nhc:AL052025": makeHistoricalProfile("ERIN", 18.2, -43.6, "2025-08-15T00:00:00.000Z", 85, "category_1"),
@@ -153,31 +200,26 @@ const HISTORICAL_STORMS: Readonly<Record<string, { name: string; history: Histor
     "nhc:CP022025": makeHistoricalProfile("KELI", 16.1, -167.5, "2025-08-18T00:00:00.000Z", 45, "tropical_storm"),
 };
 
-function makeNhcTrack (
-    stormId: string,
-    name: string,
-    issuedAt: string,
-    lat: number,
-    lon: number,
-    windSpeed: number,
-): StormTrack {
+function makeNhcTrack (storm: StormSummary): StormTrack {
+    const windSpeed = storm.windSpeed ?? 35;
+
     return {
-        stormId,
-        name,
+        stormId: storm.stormId,
+        name: storm.name,
         source: "nhc",
-        issuedAt,
+        issuedAt: storm.datetime,
         cachedUntil: null,
         observed: [{
-            lat,
-            lon,
-            datetime: issuedAt,
+            lat: storm.lat,
+            lon: storm.lon,
+            datetime: storm.datetime,
             windSpeed,
             category: getCategory(windSpeed),
         }],
         forecast: [12, 24, 48].map((forecastHour) => ({
-            lat: lat + (forecastHour / 24),
-            lon: lon - (forecastHour / 6),
-            datetime: new Date(Date.parse(issuedAt) + (forecastHour * 3_600_000)).toISOString(),
+            lat: storm.lat + (forecastHour / 24),
+            lon: storm.lon - (forecastHour / 6),
+            datetime: new Date(Date.parse(storm.datetime) + (forecastHour * 3_600_000)).toISOString(),
             windSpeed: Math.max(35, windSpeed - (forecastHour / 6)),
             category: getCategory(Math.max(35, windSpeed - (forecastHour / 6))),
             forecastHour,
@@ -185,26 +227,81 @@ function makeNhcTrack (
     };
 }
 
-function makeNhcCone (stormId: string, issuedAt: string, lon: number, lat: number): StormCone {
+function makeGdacsTrack (storm: StormSummary): StormTrack {
+    const windSpeed = storm.windSpeed ?? 35;
+
     return {
-        stormId,
+        stormId: storm.stormId,
+        name: storm.name,
+        source: "gdacs",
+        area: storm.area ?? null,
+        issuedAt: storm.datetime,
+        cachedUntil: null,
+        observed: [{
+            lat: storm.lat - 1.8,
+            lon: storm.lon + 3.2,
+            datetime: new Date(Date.parse(storm.datetime) - 24 * 3_600_000).toISOString(),
+            windSpeed: Math.max(25, windSpeed - 20),
+            category: getCategory(Math.max(25, windSpeed - 20)),
+        }, {
+            lat: storm.lat,
+            lon: storm.lon,
+            datetime: storm.datetime,
+            windSpeed,
+            category: getCategory(windSpeed),
+        }],
+        forecast: [],
+    };
+}
+
+function makeNhcCone (storm: StormSummary): StormCone {
+    return {
+        stormId: storm.stormId,
         source: "nhc",
-        issuedAt,
+        issuedAt: storm.datetime,
         cachedUntil: null,
         availability: "available",
         geometryKind: "forecast_cone",
         geojson: {
             type: "Feature",
-            properties: { source: "nhc", issuedAt },
+            properties: { source: "nhc", issuedAt: storm.datetime },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [lon - 2, lat - 1],
-                    [lon + 3, lat - 1],
-                    [lon + 6, lat + 4],
-                    [lon - 2, lat - 1],
+                    [storm.lon - 2, storm.lat - 1],
+                    [storm.lon + 3, storm.lat - 1],
+                    [storm.lon + 6, storm.lat + 4],
+                    [storm.lon - 2, storm.lat - 1],
                 ]],
             },
+        },
+    };
+}
+
+function makeGdacsCone (storm: StormSummary): StormCone {
+    return {
+        stormId: storm.stormId,
+        source: "gdacs",
+        issuedAt: storm.datetime,
+        cachedUntil: null,
+        availability: "available",
+        geometryKind: "gdacs_event_area",
+        geojson: {
+            type: "FeatureCollection",
+            features: [{
+                type: "Feature",
+                properties: { source: "gdacs", area: storm.area ?? null },
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [[
+                        [storm.lon - 4, storm.lat - 3],
+                        [storm.lon + 4, storm.lat - 3],
+                        [storm.lon + 4, storm.lat + 3],
+                        [storm.lon - 4, storm.lat + 3],
+                        [storm.lon - 4, storm.lat - 3],
+                    ]],
+                },
+            }],
         },
     };
 }

@@ -62,13 +62,19 @@ curl -s "$BASE/health"
 
 ## 3. Bộ data test có sẵn
 
-### 3 cơn bão đang hoạt động
+### 9 cơn bão đang hoạt động
 
 | `stormId` | Tên | Cấp | Vị trí | Đặc điểm để test |
 |---|---|---|---|---|
-| `nhc:AL022026` | TROPICAL STORM BERYL | `tropical_storm` (60 kt) | 22.4 / -77.8 | Có `watchWarning`, `alertLevel: null` |
-| `nhc:EP072026` | HURRICANE GENEVIEVE | `category_3` (100 kt) | 19.4 / -116.6 | `watchWarning: null` |
-| `gdacs:TC:1001297:51` | DOLPHIN-26 | `category_5` (145 kt) | 27 / 124.8 | Nguồn GDACS, `alertLevel: "Orange"`, `area` 3 nước |
+| `nhc:AL012026` | TROPICAL DEPRESSION ANDREW | `tropical_depression` (30 kt) | 12.6 / -45.8 | NHC Atlantic, không watch/warning |
+| `nhc:AL022026` | TROPICAL STORM BERYL | `tropical_storm` (60 kt) | 22.4 / -77.8 | Có `watchWarning` |
+| `nhc:AL032026` | HURRICANE CHARLIE | `category_1` (75 kt) | 25.1 / -68.3 | NHC Atlantic, có hurricane watch |
+| `nhc:EP072026` | HURRICANE GENEVIEVE | `category_3` (100 kt) | 19.4 / -116.6 | NHC Eastern Pacific |
+| `nhc:EP082026` | HURRICANE HILDA | `category_4` (120 kt) | 15.8 / -109.2 | NHC Eastern Pacific |
+| `nhc:CP012026` | TROPICAL STORM IONA | `tropical_storm` (50 kt) | 13.7 / -160.4 | NHC Central Pacific (`CP`) |
+| `nhc:CP022026` | HURRICANE KELI | `category_2` (90 kt) | 17.2 / -171.6 | NHC Central Pacific (`CP`), có watch |
+| `gdacs:TC:1001297:51` | DOLPHIN-26 | `category_5` (145 kt) | 27 / 124.8 | GDACS, `alertLevel: "Orange"` |
+| `gdacs:TC:1001432:3` | MANGKHUT-26 | `tropical_storm` (45 kt) | 18.3 / 121.4 | GDACS, `alertLevel: "Red"` |
 
 ### 8 cơn bão lịch sử (dùng cho `/history-track`)
 
@@ -76,9 +82,9 @@ curl -s "$BASE/health"
 
 Mỗi bão 2 điểm lịch sử, cấp từ `tropical_storm` tới `category_5`.
 
-### Data suy ra từ 3 bão trên
+### Data suy ra từ 9 bão trên
 
-- **Spaghetti:** chỉ `nhc:AL022026` và `nhc:EP072026` có model.
+- **Spaghetti:** mọi bão NHC active đều có model, bao gồm cả `nhc:CP012026` và `nhc:CP022026`.
 - **Weather:** toạ độ nằm trong **bán kính 400 km** quanh một bão fixture sẽ trả thời tiết bão; ngoài bán kính trả ngày quang mây.
 
 ---
@@ -95,13 +101,13 @@ curl -s "$BASE/v1/storms?region=gdacs"
 
 | # | Case | Kết quả mong đợi |
 |---|---|---|
-| 1 | Gọi không tham số | 200, đúng **3 bão** theo thứ tự AL022026 → EP072026 → gdacs |
-| 2 | `region=us-nhc` | Chỉ 2 bão `source: "nhc"` |
-| 3 | `region=gdacs` | Chỉ 1 bão `source: "gdacs"` |
+| 1 | Gọi không tham số | 200, đúng **9 bão** theo thứ tự Atlantic → Eastern Pacific → Central Pacific → GDACS |
+| 2 | `region=us-nhc` | Chỉ 7 bão `source: "nhc"`, bao gồm `CP012026` và `CP022026` |
+| 3 | `region=gdacs` | Chỉ 2 bão `source: "gdacs"` |
 | 4 | `region=abc` | 400 `BAD_REQUEST` |
 | 5 | Kiểm tra `area` | NHC: `"North Atlantic Ocean"` / `"Eastern North Pacific Ocean"`; GDACS: `"Marshall Islands, Japan, China"` |
-| 6 | Kiểm tra `message` | Cả 3 bão đều có câu khuyến nghị an toàn theo `category` |
-| 7 | Kiểm tra `alertLevel` | `null` với NHC, `"Orange"` với GDACS |
+| 6 | Kiểm tra `message` | Cả 9 bão đều có câu khuyến nghị an toàn theo `category` |
+| 7 | Kiểm tra `alertLevel` | `null` với NHC, GDACS có cả `"Orange"` và `"Red"` |
 | 8 | Gọi lần 2 trong 10 phút | `cacheStatus` đổi từ `upstream` sang `cached` |
 
 ### 4.2 `GET /v1/storms/:stormId/track` — đường đi
@@ -116,7 +122,7 @@ curl -s "$BASE/v1/storms/gdacs:TC:1001297:51/track"
 | 1 | Bão NHC | 200, **1 điểm** `observed` + **3 điểm** `forecast` (`forecastHour` = 12, 24, 48) |
 | 2 | Bão GDACS | 200, **2 điểm** `observed`, `forecast: []` — FE không được crash |
 | 3 | `windSpeed` trong forecast | Giảm dần theo `forecastHour` |
-| 4 | `nhc:AL012026` (đúng định dạng, không có data) | 404 `STORM_NOT_FOUND` |
+| 4 | `nhc:AL092026` (đúng định dạng, không có data) | 404 `STORM_NOT_FOUND` |
 | 5 | `EP072026` (thiếu tiền tố) | 400 `BAD_REQUEST` |
 | 6 | `cachedUntil` | ISO UTC, cách hiện tại ~10 phút |
 
@@ -218,7 +224,8 @@ curl -s "$BASE/v1/weather/forecast?lat=19.4&lon=-116.6"
 
 | # | Case | Kết quả mong đợi |
 |---|---|---|
-| 1 | Số điểm | `hourly` **40 điểm** cách nhau **3 giờ**, `daily` **5 điểm** cách nhau 1 ngày (12:00 giờ địa phương) |
+| 1 | Số điểm | `hourly` **chỉ các mốc 3 giờ còn lại của ngày gọi API** (tối đa 8, gọi càng muộn càng ít), `daily` **5 điểm** (12:00 giờ địa phương) |
+| 1a | Mốc giờ | Chia theo UTC nên giờ VN là 01, 04, 07, 10, 13, 16, 19, 22. Gọi lúc 08:00 VN → mốc đầu là 07:00 (đang chạy), không có 01:00 và 04:00. Gọi 23:30 → chỉ còn 1 điểm |
 | 1b | `daily` | Backend tự gom từ `hourly`: `temp` lấy điểm gần 12:00, `pop` và `windSpeed` lấy max trong ngày, `rain1hMm` là **tổng mm cả ngày** |
 | 1c | `uvi` | Luôn `null` ở cả `hourly` và `daily` |
 | 2 | Khớp với `/weather/current` | Cùng toạ độ → điểm `hourly[0]` cùng kiểu thời tiết với `/weather/current` |
@@ -228,7 +235,7 @@ curl -s "$BASE/v1/weather/forecast?lat=19.4&lon=-116.6"
 
 ### 4.10 `GET /v1/map-tiles/:layer/:z/:x/:y` — ảnh tile
 
-> Không dùng data fake, vẫn gọi OpenWeather thật — luôn có data, không phụ thuộc mùa bão.
+> Fixture mode trả PNG màu sinh local; live mode vẫn gọi OpenWeather.
 
 ```bash
 curl -s -o tile.png -w "%{http_code} %{content_type}\n" "$BASE/v1/map-tiles/temperature/5/25/15"
@@ -243,7 +250,7 @@ curl -s -o tile.png -w "%{http_code} %{content_type}\n" "$BASE/v1/map-tiles/temp
 
 ### 4.11 `GET /v1/radar` — khung radar
 
-> Không dùng data fake, vẫn gọi RainViewer thật.
+> Fixture mode trả manifest local và trỏ tile về `/v1/map-tiles/precipitation/...`; live mode vẫn gọi RainViewer.
 
 | # | Case | Kết quả mong đợi |
 |---|---|---|
@@ -331,7 +338,8 @@ curl -s -X POST "$BASE/v1/notifications/send" -H "content-type: application/json
 
 ## 7. Giới hạn đã biết của data test
 
-- `/v1/map-tiles/...` và `/v1/radar` **vẫn gọi provider thật** — cần mạng ra ngoài và `OPENWEATHER_API_KEY` hợp lệ.
+- Trong `STORM_DATA_MODE=fixture`, `/v1/map-tiles/...` trả PNG sinh local và `/v1/radar` trả manifest local; không cần mạng hay `OPENWEATHER_API_KEY`.
+- Device, storm subscription và region subscription ở fixture mode chỉ lưu trong RAM; restart API sẽ xoá dữ liệu test. `/v1/notifications/send` trả thành công nhưng không gửi APNs.
 - Không sinh được case `availability: "not_available"` / `"not_supported"` của `/cone`; muốn test 2 trạng thái đó phải chạy `STORM_DATA_MODE=live` hoặc dùng collection `postman/Soosky-Storm-API-Cone-Not-Available-Mock.postman_collection.json`.
 - Bão fixture **không di chuyển** — không test được thay đổi vị trí giữa 2 lần gọi.
 - Scheduler alert tắt → không có push tự động.

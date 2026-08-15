@@ -49,31 +49,47 @@ test("fixture weather converts to the requested units", async () => {
     assert.equal(standard.temperature, Math.round(((metric.temperature ?? 0) + 273.15) * 10) / 10);
 });
 
-test("fixture forecast returns 40 three-hour points folded into 5 days", async () => {
+test("fixture forecast returns only the three-hour slots left in the current day", async () => {
     const repository = new FixtureWeatherRepository(() => NOW);
     const forecast = await repository.getForecast({ ...STORM_CENTRE, units: "metric" });
 
-    assert.equal(forecast.hourly.length, 40);
-    assert.equal(forecast.daily.length, 5);
-    assert.equal(forecast.hourly[0]?.time, "2026-08-08T12:00:00.000Z");
-    assert.equal(forecast.hourly[1]?.time, "2026-08-08T15:00:00.000Z");
-    assert.equal(forecast.daily[0]?.time, "2026-08-08T12:00:00.000Z");
-    assert.equal(forecast.daily[1]?.time, "2026-08-09T12:00:00.000Z");
+    // NOW is 12:34 UTC: the 12:00 slot is still running, then 15:00, 18:00 and 21:00.
+    assert.deepEqual(forecast.hourly.map((point) => point.time), [
+        "2026-08-08T12:00:00.000Z",
+        "2026-08-08T15:00:00.000Z",
+        "2026-08-08T18:00:00.000Z",
+        "2026-08-08T21:00:00.000Z",
+    ]);
     assert.equal(forecast.location.timezone, "UTC");
     assert.ok(forecast.hourly.every((point) => point.temp !== null && point.weather.length === 1));
     assert.ok(forecast.hourly.every((point) => point.uvi === null));
 });
 
-test("fixture daily points carry the worst wind and probability of the day", async () => {
+test("fixture forecast keeps only the slot still running late in the day", async () => {
+    const repository = new FixtureWeatherRepository(() => Date.parse("2026-08-08T23:30:00.000Z"));
+    const forecast = await repository.getForecast({ ...STORM_CENTRE, units: "metric" });
+
+    assert.deepEqual(forecast.hourly.map((point) => point.time), ["2026-08-08T21:00:00.000Z"]);
+    assert.equal(forecast.daily.length, 5);
+});
+
+test("fixture daily points cover 5 days and carry the worst wind and probability of each", async () => {
     const repository = new FixtureWeatherRepository(() => NOW);
     const forecast = await repository.getForecast({ ...STORM_CENTRE, units: "metric" });
-    const day = forecast.daily[1];
-    const slots = forecast.hourly.filter((point) => point.time.startsWith("2026-08-09"));
 
-    assert.equal(day?.pop, Math.max(...slots.map((point) => point.pop ?? 0)));
-    assert.equal(day?.windSpeed, Math.max(...slots.map((point) => point.windSpeed ?? 0)));
+    assert.equal(forecast.daily.length, 5);
+    assert.equal(forecast.daily[0]?.time, "2026-08-08T12:00:00.000Z");
+    assert.equal(forecast.daily[1]?.time, "2026-08-09T12:00:00.000Z");
+
+    const day = forecast.daily[0];
+    const remaining = forecast.hourly;
+
+    // The day is folded from all eight slots, so its worst values cover the slots
+    // that hourly no longer carries.
+    assert.ok((day?.pop ?? 0) >= Math.max(...remaining.map((point) => point.pop ?? 0)));
+    assert.ok((day?.windSpeed ?? 0) >= Math.max(...remaining.map((point) => point.windSpeed ?? 0)));
     // The daily rain is the day's total, not a rate.
-    assert.ok((day?.rain1hMm ?? 0) > (slots[0]?.rain1hMm ?? 0));
+    assert.ok((day?.rain1hMm ?? 0) > (remaining[0]?.rain1hMm ?? 0));
 });
 
 test("fixture weather is deterministic for the same clock and coordinates", async () => {

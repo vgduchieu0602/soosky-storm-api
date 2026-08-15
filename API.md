@@ -443,8 +443,8 @@ Dự báo 5 ngày, bước 3 giờ. Nguồn: OpenWeather **5 Day / 3 Hour Foreca
 | --- | --- | --- |
 | `location`, `units` | object | Như mục 7 |
 | `cachedUntil` | string \| null | ISO UTC (cache 20 phút — tạm thời cho giai đoạn test) |
-| `hourly` | array | **≤ 40 điểm**, mỗi điểm cách **3 giờ** (không phải 1 giờ) |
-| `daily` | array | **≤ 5 điểm**, backend tự gom từ `hourly` theo ngày địa phương |
+| `hourly` | array | **Chỉ các mốc còn lại của NGÀY GỌI API** (giờ địa phương của toạ độ), mỗi mốc cách **3 giờ**. Tối đa 8 điểm, gọi càng muộn càng ít |
+| `daily` | array | **≤ 5 điểm**, backend tự gom theo ngày địa phương — bao gồm cả các mốc đã qua trong ngày hôm nay |
 
 Mỗi điểm trong `hourly` / `daily`:
 
@@ -462,7 +462,15 @@ Mỗi điểm trong `hourly` / `daily`:
 | `rain1hMm` | number \| null | `hourly`: **mm/h** (tổng 3 giờ của provider chia 3). `daily`: **tổng mm cả ngày** |
 | `weather` | array | `{ id, main, description, icon }` |
 
-**Lưu ý cho FE:** `hourly` bước 3 giờ nên biểu đồ theo giờ phải nội suy hoặc vẽ theo mốc 3 giờ. `daily` do backend gom, ngày đầu tiên có thể thiếu slot nếu gọi vào buổi chiều.
+**Mốc 3 giờ chia theo UTC** (`00:00`, `03:00`, `06:00`, … UTC), nên ở Việt Nam (UTC+07:00) các mốc rơi vào **01, 04, 07, 10, 13, 16, 19, 22 giờ**. Provider chỉ phát hành mốc tương lai, backend giữ thêm **mốc đang chạy**:
+
+| Gọi lúc (giờ VN) | `hourly` trả về |
+| --- | --- |
+| 08:00 | 07:00 (đang chạy), 10:00, 13:00, 16:00, 19:00, 22:00 — **6 điểm**. Mốc 01:00 và 04:00 đã kết thúc nên không có |
+| 00:30 | 22:00 hôm trước vẫn đang chạy nhưng thuộc ngày khác → bỏ; còn 01:00, 04:00, … 22:00 — **8 điểm** |
+| 23:30 | Chỉ còn mốc 22:00 đang chạy — **1 điểm** |
+
+**Lưu ý cho FE:** đọc `time` của từng điểm thay vì giả định khoảng cách hay số lượng. Muốn xem cả ngày (kể cả mốc đã qua) thì dùng `daily`, vì `daily` gom từ đủ 8 mốc của ngày.
 
 **Lỗi:** 400 · 502.
 
@@ -505,7 +513,7 @@ Manifest radar RainViewer để FE tự ghép tile.
 
 | Field | Kiểu | Ghi chú |
 | --- | --- | --- |
-| `source` | string | `"rainviewer"` |
+| `source` | string | `"rainviewer"` ở live mode, `"fixture"` ở fixture mode |
 | `attribution`, `attributionUrl` | string | **Bắt buộc hiển thị** theo điều khoản RainViewer |
 | `host` | string | |
 | `tileTemplate` | string | Thay `{path}`, `{z}`, `{x}`, `{y}` |
@@ -524,7 +532,7 @@ const url = data.tileTemplate
 
 ---
 
-## 11. Device & Subscription (cần MongoDB)
+## 11. Device & Subscription (cần MongoDB ở live mode)
 
 Chưa có authentication: `deviceToken` chính là danh tính thiết bị. **`deviceToken` không bao giờ được trả lại trong response.**
 
@@ -638,23 +646,33 @@ STORM_DATA_MODE=fixture
 Sau khi restart, các API storm sau luôn có dữ liệu local, dựa trên các profile bão thật/lịch sử: `/v1/storms`, `/track`, `/cone`, `/history-track`, `GET /v1/storms/demo` và `POST /v1/storms/tracking`. Các `stormId` fixture ổn định để FE có thể subscribe và test luồng detail:
 
 ```text
+nhc:AL012026         active, tropical depression
 nhc:AL022026         active, tropical storm
+nhc:AL032026         active, category 1
 nhc:EP072026         active, category 3
-gdacs:TC:1001297:51  active, category 5
+nhc:EP082026         active, category 4
+nhc:CP012026         active, tropical storm
+nhc:CP022026         active, category 2
+gdacs:TC:1001297:51  active, category 5, Orange
+gdacs:TC:1001432:3   active, tropical storm, Red
 nhc:EP032025         historical, dissipated
 ```
 
-Fixture mode phủ luôn `/spaghetti` và weather, dữ liệu **đồng bộ với 3 bão fixture**:
+Fixture mode phủ luôn `/spaghetti`, weather, map/radar và các API ghi dữ liệu; tất cả đều **đồng bộ với 9 bão active fixture** và không gọi upstream:
 
 | API | Data fake |
 | --- | --- |
-| `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho `nhc:AL022026` và `nhc:EP072026`; mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. `stormId` NHC khác → `not_available`; `gdacs:*` → `not_supported`. |
+| `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho mọi bão NHC active, gồm Atlantic, Eastern Pacific và Central Pacific (`CP`); mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. NHC không active → `not_available`; `gdacs:*` → `not_supported`. |
 | `/v1/weather/current` | Tọa độ **trong bán kính 400 km** quanh một bão fixture trả thời tiết bão (`Thunderstorm`, gió theo đúng `windSpeed` của bão đó, mưa lớn, tầm nhìn giảm, `pop` tới 1). Ngoài bán kính trả ngày quang mây. |
-| `/v1/weather/forecast` | 40 điểm `hourly` (cách 3 giờ) + 5 điểm `daily` (12:00 UTC mỗi ngày), cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
+| `/v1/weather/forecast` | `hourly` là các mốc 3 giờ còn lại của ngày gọi API, `daily` 5 điểm (12:00 UTC mỗi ngày) — cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
+| `/v1/map-tiles/:layer/:z/:x/:y` | PNG màu 256×256 sinh local, xác định theo layer/tile coordinate. Có đủ `windSpeed`, `temperature`, `pressure`, `precipitation`. |
+| `/v1/radar` | Manifest radar mẫu (`source: "fixture"`), với `tileTemplate` trỏ vào map tile local ở trên. |
+| `/v1/devices`, storm/region subscription | Store trong RAM, giữ nguyên hành vi idempotent; dữ liệu reset khi restart API. Không cần MongoDB. |
+| `/v1/notifications/send` | Nhận request hợp lệ và trả `sent: true`, nhưng không kết nối APNs hay gửi push thật. |
 
 Ví dụ: gọi `/v1/weather/current?lat=19.4&lon=-116.6` (tâm `nhc:EP072026`) sẽ ra gió ~51 m/s đúng với cấp 3 của bão đó trong `/v1/storms`. Data không phụ thuộc đồng hồ ngoài mốc giờ, cùng input luôn ra cùng output → chụp snapshot UI ổn định. Fixture weather không cần `OPENWEATHER_API_KEY`.
 
-Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode để không gửi push notification giả tới người dùng thật. Map tile và radar vẫn dùng upstream riêng (luôn có data, không phụ thuộc mùa bão).
+Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode; MongoDB, OpenWeather, RainViewer và APNs đều không được kết nối.
 
 ### 12.4 Data luôn có — test được ngay
 

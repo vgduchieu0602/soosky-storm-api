@@ -8,17 +8,20 @@ const HOUR_SECONDS = 3600;
 // 2026-08-09T00:00:00Z, which is 07:00 in the Ho Chi Minh City offset used below.
 const FIRST_SLOT = 1_786_233_600;
 const OFFSET_SECONDS = 25_200;
+// 06:30 local on the day the first slot belongs to, so that day is "today".
+const NOW = Date.parse("2026-08-08T23:30:00.000Z");
 
 test("forecast repository maps the 5 day / 3 hour list into hourly points", async () => {
     const requests: string[] = [];
-    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(), requests));
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(), requests), () => NOW);
 
     const forecastWeather = await repository.getForecast(QUERY);
 
     assert.equal(requests.length, 1);
     assert.ok(requests[0]?.startsWith("https://api.openweathermap.org/data/2.5/forecast?"));
     assert.deepEqual(forecastWeather.location, { lat: 10.8231, lon: 106.6297, timezone: "Etc/GMT-7" });
-    assert.equal(forecastWeather.hourly.length, 16);
+    // Only the slots left in the caller's own local day: 07:00 through 22:00 local.
+    assert.equal(forecastWeather.hourly.length, 6);
 
     const [first, second] = forecastWeather.hourly;
 
@@ -35,7 +38,7 @@ test("forecast repository maps the 5 day / 3 hour list into hourly points", asyn
 });
 
 test("forecast repository converts the three-hour rain total into a rate", async () => {
-    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()));
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => NOW);
     const forecastWeather = await repository.getForecast(QUERY);
 
     // The first slot reports 1.5 mm over three hours.
@@ -45,7 +48,7 @@ test("forecast repository converts the three-hour rain total into a rate", async
 });
 
 test("forecast repository reports no UV index", async () => {
-    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()));
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => NOW);
     const forecastWeather = await repository.getForecast(QUERY);
 
     assert.ok(forecastWeather.hourly.every((point) => point.uvi === null));
@@ -53,7 +56,7 @@ test("forecast repository reports no UV index", async () => {
 });
 
 test("forecast repository folds the three-hour points into daily points", async () => {
-    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()));
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => NOW);
     const forecastWeather = await repository.getForecast(QUERY);
 
     // 16 slots of three hours starting at 07:00 local span three local days.
@@ -71,8 +74,31 @@ test("forecast repository folds the three-hour points into daily points", async 
     assert.equal(firstDay?.rain1hMm, 3);
 });
 
+test("forecast repository drops slots that belong to another local day", async () => {
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => NOW);
+    const forecastWeather = await repository.getForecast(QUERY);
+
+    assert.ok(forecastWeather.hourly.every((point) => {
+        const localHour = new Date(Date.parse(point.time) + (OFFSET_SECONDS * 1000)).getUTCHours();
+
+        return localHour >= 7 && localHour <= 22;
+    }));
+    // Tomorrow is gone from hourly but still present in daily.
+    assert.ok(forecastWeather.daily.length > 1);
+});
+
+test("forecast repository keeps the slot in progress and drops the ones already over", async () => {
+    // 23:30 local: only the 22:00 local slot is still running.
+    const lateInTheDay = Date.parse("2026-08-09T16:30:00.000Z");
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => lateInTheDay);
+    const forecastWeather = await repository.getForecast(QUERY);
+
+    assert.deepEqual(forecastWeather.hourly.map((point) => point.time), ["2026-08-09T15:00:00.000Z"]);
+    assert.ok(forecastWeather.daily.length > 0, "daily still covers the coming days");
+});
+
 test("forecast repository caps the daily list at five days", async () => {
-    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(56)));
+    const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(56)), () => NOW);
 
     assert.equal((await repository.getForecast(QUERY)).daily.length, 5);
 });
@@ -86,7 +112,7 @@ test("forecast repository maps the requested units", async (context) => {
     for (const [units, temperature, windSpeed] of expected) {
         await context.test(units, async () => {
             const requests: string[] = [];
-            const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(), requests));
+            const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast(), requests), () => NOW);
             const forecastWeather = await repository.getForecast({ ...QUERY, units });
 
             assert.equal(forecastWeather.units.temperature, temperature);

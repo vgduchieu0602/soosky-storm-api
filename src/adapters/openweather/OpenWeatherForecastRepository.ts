@@ -17,6 +17,7 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 /** The 5 day / 3 hour endpoint publishes one point every three hours. */
 const STEP_HOURS = 3;
+const STEP_MS = STEP_HOURS * HOUR_MS;
 const MAX_DAILY_POINTS = 5;
 
 export { OpenWeatherForecastRepository as default };
@@ -32,6 +33,7 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
     public constructor (
         private readonly _apiKey: string | undefined,
         private readonly _fetcher: typeof fetch = fetch,
+        private readonly _now: () => number = Date.now,
     ) {}
 
     public async getForecast (query: ForecastWeatherQuery): Promise<ForecastWeather> {
@@ -41,18 +43,28 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
 
         const payload = await this._getForecast(query);
         const parsed = readList(payload).map(parsePoint).sort((left, right) => left.timestamp - right.timestamp);
-        const offsetSeconds = readCityOffsetSeconds(payload);
+        const offsetMs = (readCityOffsetSeconds(payload) ?? 0) * 1000;
+        const now = this._now();
+        const today = toLocalDay(now, offsetMs);
 
         return {
             location: {
                 lat: query.lat,
                 lon: query.lon,
-                timezone: readTimezone(offsetSeconds),
+                timezone: readTimezone(readCityOffsetSeconds(payload)),
             },
             units: getUnits(query.units),
             cachedUntil: null,
-            hourly: parsed.map(({ point }) => point),
-            daily: toDailyPoints(parsed, (offsetSeconds ?? 0) * 1000),
+            // Hourly covers what is left of the caller's own local day. The slot in
+            // progress is kept; slots that already ended, and every slot belonging to
+            // another day, are dropped.
+            hourly: parsed
+                .filter((entry) => {
+                    return toLocalDay(entry.timestamp, offsetMs) === today
+                        && entry.timestamp + STEP_MS > now;
+                })
+                .map(({ point }) => point),
+            daily: toDailyPoints(parsed, offsetMs),
         };
     }
 
@@ -162,7 +174,7 @@ function toDailyPoints (parsed: ParsedForecastPoint[], offsetMs: number): Foreca
     const days = new Map<number, ParsedForecastPoint[]>();
 
     for (const entry of parsed) {
-        const localDay = Math.floor((entry.timestamp + offsetMs) / DAY_MS);
+        const localDay = toLocalDay(entry.timestamp, offsetMs);
         const bucket = days.get(localDay);
 
         if (bucket) {
@@ -202,6 +214,10 @@ function toDailyPoint (
         windSpeed: pickMax(entries.map(({ point }) => point.windSpeed)),
         rain1hMm: rainTotalMm === null ? null : round(rainTotalMm),
     };
+}
+
+function toLocalDay (timestamp: number, offsetMs: number): number {
+    return Math.floor((timestamp + offsetMs) / DAY_MS);
 }
 
 function pickMax (values: (number | null)[]): number | null {

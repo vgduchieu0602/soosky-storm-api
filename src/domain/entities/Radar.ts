@@ -4,9 +4,9 @@ interface RadarFrame {
 }
 
 interface Radar {
-    source: "rainviewer";
-    attribution: "Weather data by RainViewer";
-    attributionUrl: "https://www.rainviewer.com/";
+    source: "rainviewer" | "fixture";
+    attribution: string;
+    attributionUrl: string;
     host: string;
     tileTemplate: string;
     past: RadarFrame[];
