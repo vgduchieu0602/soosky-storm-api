@@ -1,6 +1,5 @@
 const MAP_LAYERS = ["windSpeed", "temperature", "pressure", "precipitation"] as const;
-const MIN_MAP_ZOOM = 2;
-const MAX_MAP_ZOOM = 7;
+const MAX_MAP_ZOOM = 12;
 
 type MapLayer = (typeof MAP_LAYERS)[number];
 
@@ -16,5 +15,5 @@ interface MapTile {
     contentType: string;
 }
 
-export { MAP_LAYERS, MAX_MAP_ZOOM, MIN_MAP_ZOOM, MapTile as default };
+export { MAP_LAYERS, MAX_MAP_ZOOM, MapTile as default };
 export type { MapLayer, MapTileQuery };

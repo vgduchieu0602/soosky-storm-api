@@ -10,7 +10,7 @@ import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghett
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
 import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWeatherUseCase.js";
 import { ForecastUnits } from "../domain/entities/ForecastWeather.js";
-import { MAP_LAYERS, MAX_MAP_ZOOM, MIN_MAP_ZOOM, MapLayer } from "../domain/entities/MapTile.js";
+import { MAP_LAYERS, MAX_MAP_ZOOM, MapLayer } from "../domain/entities/MapTile.js";
 import { StormSource } from "../domain/entities/StormSummary.js";
 import GetCurrentWeatherUseCase from "../domain/use-cases/weather/GetCurrentWeatherUseCase.js";
 import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
@@ -394,7 +394,7 @@ class Server {
             throw new ClientError("Path param 'layer' is invalid.");
         }
 
-        if (z === null || x === null || y === null || z < MIN_MAP_ZOOM || z > MAX_MAP_ZOOM) {
+        if (z === null || x === null || y === null || z > MAX_MAP_ZOOM) {
             throw new ClientError("Path params 'z', 'x', and 'y' are invalid.");
         }
 
