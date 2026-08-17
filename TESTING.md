@@ -208,7 +208,7 @@ curl -s "$BASE/v1/weather/forecast?lat=19.4&lon=-116.6"
 | Ngoài bán kính 400 km | `Clear` hoặc `Clouds`, `rain1h: null`, visibility 10000 m. |
 | `units=imperial` | `temperature: "F"`, `windSpeed: "mph"`. |
 | `units=standard` | `temperature: "K"`, `windSpeed: "m/s"`. |
-| Forecast | `hourly` có các mốc 3 giờ còn lại trong ngày; `daily` có 5 điểm. |
+| Forecast | `hourly` có các mốc 3 giờ phủ 24 giờ kế tiếp; `daily` có 5 điểm. |
 | Thiếu/sai `lat`, `lon`, `units` | `400 BAD_REQUEST`. |
 
 `uvi` và `precipitationProbability` của current weather luôn là `null`. Với forecast, `uvi` luôn là `null`; đọc `pop` để lấy xác suất mưa.

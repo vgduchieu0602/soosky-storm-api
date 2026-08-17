@@ -45,7 +45,7 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
         const parsed = readList(payload).map(parsePoint).sort((left, right) => left.timestamp - right.timestamp);
         const offsetMs = (readCityOffsetSeconds(payload) ?? 0) * 1000;
         const now = this._now();
-        const today = toLocalDay(now, offsetMs);
+        const endOfHourlyWindow = now + DAY_MS;
 
         return {
             location: {
@@ -55,12 +55,11 @@ class OpenWeatherForecastRepository implements ForecastWeatherRepository {
             },
             units: getUnits(query.units),
             cachedUntil: null,
-            // Hourly covers what is left of the caller's own local day. The slot in
-            // progress is kept; slots that already ended, and every slot belonging to
-            // another day, are dropped.
+            // Hourly covers the next 24 hours from the caller's current time. Keep
+            // the slot in progress so the window has no gap at its beginning.
             hourly: parsed
                 .filter((entry) => {
-                    return toLocalDay(entry.timestamp, offsetMs) === today
+                    return entry.timestamp < endOfHourlyWindow
                         && entry.timestamp + STEP_MS > now;
                 })
                 .map(({ point }) => point),

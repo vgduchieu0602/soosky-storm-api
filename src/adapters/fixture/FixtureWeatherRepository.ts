@@ -80,17 +80,18 @@ class FixtureWeatherRepository implements CurrentWeatherRepository, ForecastWeat
     public async getForecast (query: ForecastWeatherQuery): Promise<ForecastWeather> {
         const now = this._now();
         const firstDay = Math.floor(now / DAY_MS) * DAY_MS;
-        // Same rule as the provider adapter: today's slots that have not ended yet,
-        // including the one in progress.
-        const remainingSlots = Array.from({ length: SLOTS_PER_DAY }, (_value, index) => {
-            return firstDay + (index * STEP_MS);
-        }).filter((time) => time + STEP_MS > now);
+        const firstHourlySlot = floorToStep(now);
+        // Same rule as the provider adapter: cover the next 24 hours, including the
+        // slot in progress so the response starts at the caller's current time.
+        const hourlySlots = Array.from({ length: SLOTS_PER_DAY + 1 }, (_value, index) => {
+            return firstHourlySlot + (index * STEP_MS);
+        }).filter((time) => time < now + DAY_MS);
 
         return {
             location: toLocation(query.lat, query.lon),
             units: getUnits(query.units),
             cachedUntil: null,
-            hourly: remainingSlots.map((time) => toPoint(query, time)),
+            hourly: hourlySlots.map((time) => toPoint(query, time)),
             daily: Array.from({ length: DAILY_POINTS }, (_value, index) => {
                 return toDailyPoint(query, firstDay + (index * DAY_MS));
             }),

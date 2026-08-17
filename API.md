@@ -443,7 +443,7 @@ Dự báo 5 ngày, bước 3 giờ. Nguồn: OpenWeather **5 Day / 3 Hour Foreca
 | --- | --- | --- |
 | `location`, `units` | object | Như mục 7 |
 | `cachedUntil` | string \| null | ISO UTC (cache 20 phút — tạm thời cho giai đoạn test) |
-| `hourly` | array | **Chỉ các mốc còn lại của NGÀY GỌI API** (giờ địa phương của toạ độ), mỗi mốc cách **3 giờ**. Tối đa 8 điểm, gọi càng muộn càng ít |
+| `hourly` | array | **Các mốc phủ 24 giờ kế tiếp** từ thời điểm gọi API (giờ địa phương của toạ độ), mỗi mốc cách **3 giờ**. Mốc đang chạy được giữ để không hở khoảng đầu cửa sổ. |
 | `daily` | array | **≤ 5 điểm**, backend tự gom theo ngày địa phương — bao gồm cả các mốc đã qua trong ngày hôm nay |
 
 Mỗi điểm trong `hourly` / `daily`:
@@ -466,9 +466,9 @@ Mỗi điểm trong `hourly` / `daily`:
 
 | Gọi lúc (giờ VN) | `hourly` trả về |
 | --- | --- |
-| 08:00 | 07:00 (đang chạy), 10:00, 13:00, 16:00, 19:00, 22:00 — **6 điểm**. Mốc 01:00 và 04:00 đã kết thúc nên không có |
-| 00:30 | 22:00 hôm trước vẫn đang chạy nhưng thuộc ngày khác → bỏ; còn 01:00, 04:00, … 22:00 — **8 điểm** |
-| 23:30 | Chỉ còn mốc 22:00 đang chạy — **1 điểm** |
+| 08:00 | 07:00 (đang chạy), 10:00, …, 07:00 hôm sau — **9 điểm**, phủ liên tục tới 08:00 hôm sau |
+| 00:30 | 22:00 hôm trước (đang chạy), 01:00, 04:00, …, 22:00 hôm nay — **9 điểm**, phủ liên tục tới 00:30 hôm sau |
+| 23:30 | 22:00 (đang chạy), 01:00, …, 22:00 hôm sau — **9 điểm**, phủ liên tục tới 23:30 hôm sau |
 
 **Lưu ý cho FE:** đọc `time` của từng điểm thay vì giả định khoảng cách hay số lượng. Muốn xem cả ngày (kể cả mốc đã qua) thì dùng `daily`, vì `daily` gom từ đủ 8 mốc của ngày.
 
@@ -664,7 +664,7 @@ Fixture mode phủ luôn `/spaghetti`, weather, map/radar và các API ghi dữ 
 | --- | --- |
 | `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho mọi bão NHC active, gồm Atlantic, Eastern Pacific và Central Pacific (`CP`); mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. NHC không active → `not_available`; `gdacs:*` → `not_supported`. |
 | `/v1/weather/current` | Tọa độ **trong bán kính 400 km** quanh một bão fixture trả thời tiết bão (`Thunderstorm`, gió theo đúng `windSpeed` của bão đó, mưa lớn, tầm nhìn giảm, `pop` tới 1). Ngoài bán kính trả ngày quang mây. |
-| `/v1/weather/forecast` | `hourly` là các mốc 3 giờ còn lại của ngày gọi API, `daily` 5 điểm (12:00 UTC mỗi ngày) — cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
+| `/v1/weather/forecast` | `hourly` là các mốc 3 giờ phủ 24 giờ kế tiếp từ lúc gọi API, `daily` 5 điểm (12:00 UTC mỗi ngày) — cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
 | `/v1/map-tiles/:layer/:z/:x/:y` | PNG màu 256×256 sinh local, xác định theo layer/tile coordinate. Có đủ `windSpeed`, `temperature`, `pressure`, `precipitation`. |
 | `/v1/radar` | Manifest radar mẫu (`source: "fixture"`), với `tileTemplate` trỏ vào map tile local ở trên. |
 | `/v1/devices`, storm/region subscription | Store trong RAM, giữ nguyên hành vi idempotent; dữ liệu reset khi restart API. Không cần MongoDB. |

@@ -20,8 +20,9 @@ test("forecast repository maps the 5 day / 3 hour list into hourly points", asyn
     assert.equal(requests.length, 1);
     assert.ok(requests[0]?.startsWith("https://api.openweathermap.org/data/2.5/forecast?"));
     assert.deepEqual(forecastWeather.location, { lat: 10.8231, lon: 106.6297, timezone: "Etc/GMT-7" });
-    // Only the slots left in the caller's own local day: 07:00 through 22:00 local.
-    assert.equal(forecastWeather.hourly.length, 6);
+    // The next 24 hours: 07:00 local through the 04:00 slot on the next day,
+    // whose three-hour interval finishes at 07:00.
+    assert.equal(forecastWeather.hourly.length, 8);
 
     const [first, second] = forecastWeather.hourly;
 
@@ -74,26 +75,35 @@ test("forecast repository folds the three-hour points into daily points", async 
     assert.equal(firstDay?.rain1hMm, 3);
 });
 
-test("forecast repository drops slots that belong to another local day", async () => {
+test("forecast repository keeps every slot that overlaps the next 24 hours", async () => {
     const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => NOW);
     const forecastWeather = await repository.getForecast(QUERY);
 
     assert.ok(forecastWeather.hourly.every((point) => {
         const localHour = new Date(Date.parse(point.time) + (OFFSET_SECONDS * 1000)).getUTCHours();
 
-        return localHour >= 7 && localHour <= 22;
+        return localHour >= 0 && localHour <= 22;
     }));
-    // Tomorrow is gone from hourly but still present in daily.
-    assert.ok(forecastWeather.daily.length > 1);
+    assert.equal(forecastWeather.hourly.at(-1)?.time, "2026-08-09T21:00:00.000Z");
 });
 
-test("forecast repository keeps the slot in progress and drops the ones already over", async () => {
-    // 23:30 local: only the 22:00 local slot is still running.
+test("forecast repository keeps the slot in progress for the next 24 hours", async () => {
+    // 23:30 local: the 22:00 local slot is still running, followed by tomorrow's slots.
     const lateInTheDay = Date.parse("2026-08-09T16:30:00.000Z");
     const repository = new OpenWeatherForecastRepository("key", createFetcher(forecast()), () => lateInTheDay);
     const forecastWeather = await repository.getForecast(QUERY);
 
-    assert.deepEqual(forecastWeather.hourly.map((point) => point.time), ["2026-08-09T15:00:00.000Z"]);
+    assert.deepEqual(forecastWeather.hourly.map((point) => point.time), [
+        "2026-08-09T15:00:00.000Z",
+        "2026-08-09T18:00:00.000Z",
+        "2026-08-09T21:00:00.000Z",
+        "2026-08-10T00:00:00.000Z",
+        "2026-08-10T03:00:00.000Z",
+        "2026-08-10T06:00:00.000Z",
+        "2026-08-10T09:00:00.000Z",
+        "2026-08-10T12:00:00.000Z",
+        "2026-08-10T15:00:00.000Z",
+    ]);
     assert.ok(forecastWeather.daily.length > 0, "daily still covers the coming days");
 });
 
