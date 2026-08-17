@@ -30,17 +30,9 @@ function parseNhcForecastTrackKml (kml: string, issuedAt: string): StormTrackPoi
         .sort((left, right) => (left.forecastHour ?? 0) - (right.forecastHour ?? 0));
 }
 
-function getStormCategoryFromWindSpeed (windSpeed: number | null): StormCategory {
-    if (windSpeed === null) {
-        return "unknown";
-    }
-
-    if (windSpeed <= 33) {
-        return "tropical_depression";
-    }
-
-    if (windSpeed <= 63) {
-        return "tropical_storm";
+function getStormCategoryFromWindSpeed (windSpeed: number | null): StormCategory | null {
+    if (windSpeed === null || windSpeed <= 63) {
+        return null;
     }
 
     if (windSpeed <= 82) {

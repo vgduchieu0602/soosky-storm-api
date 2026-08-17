@@ -13,6 +13,6 @@ function formatStormSummaryResponse (summary: StormSummary): StormSummaryRespons
     return {
         ...summary,
         area: getStormArea(summary),
-        message: CATEGORY_SAFETY_MESSAGES[summary.category] ?? null,
+        message: summary.category === null ? null : CATEGORY_SAFETY_MESSAGES[summary.category] ?? null,
     };
 }

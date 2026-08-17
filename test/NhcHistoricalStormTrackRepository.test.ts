@@ -36,7 +36,7 @@ test("NHC historical track repository downloads KMZ best-track data and normaliz
         cachedUntil: null,
         availability: "available",
         history: [
-            { lat: 21.4, lon: -128.2, datetime: "2026-07-31T06:00:00.000Z", windSpeed: 50, category: "tropical_storm" },
+            { lat: 21.4, lon: -128.2, datetime: "2026-07-31T06:00:00.000Z", windSpeed: 50, category: null },
             { lat: 21.8, lon: -129.1, datetime: "2026-07-31T12:00:00.000Z", windSpeed: 70, category: "category_1" },
             { lat: 22.1, lon: -129.9, datetime: "2026-07-31T18:00:00.000Z", windSpeed: 90, category: "category_2" },
         ],
@@ -123,7 +123,7 @@ test("NHC historical track repository reads an archived B-deck for a finished st
         cachedUntil: null,
         availability: "available",
         history: [
-            { lat: 21.4, lon: -128.2, datetime: "2025-07-31T06:00:00.000Z", windSpeed: 50, category: "tropical_storm" },
+            { lat: 21.4, lon: -128.2, datetime: "2025-07-31T06:00:00.000Z", windSpeed: 50, category: null },
             { lat: 21.8, lon: -129.1, datetime: "2025-07-31T12:00:00.000Z", windSpeed: 70, category: "category_1" },
             { lat: 22.1, lon: -129.9, datetime: "2025-07-31T18:00:00.000Z", windSpeed: 90, category: "category_2" },
         ],

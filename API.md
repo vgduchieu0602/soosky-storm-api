@@ -56,14 +56,12 @@ Ngoại lệ duy nhất: `GET /v1/map-tiles/...` trả **ảnh PNG nhị phân**
 
 | `category` | windSpeed (kt) | km/h |
 | --- | --- | --- |
-| `tropical_depression` | ≤ 33 | ≤ 61 |
-| `tropical_storm` | 34–63 | 63–117 |
+| `null` | ≤ 63, hoặc `windSpeed` là `null` | ≤ 117 hoặc không có dữ liệu |
 | `category_1` | 64–82 | 118–152 |
 | `category_2` | 83–95 | 154–176 |
 | `category_3` | 96–112 | 178–207 |
 | `category_4` | 113–136 | 209–252 |
 | `category_5` | ≥ 137 | ≥ 254 |
-| `unknown` | `windSpeed` là `null` | — |
 
 ### Định dạng `stormId`
 
@@ -193,7 +191,7 @@ Trả dữ liệu card cho màn hình **Saved Storms**. FE tự lưu danh sách 
 | `name`, `source` | string | Thông tin hiển thị card. |
 | `area` | `"PO"` \| `"AO"` \| `"IO"` \| `"SO"` \| `"AR"` | Vùng đại dương chuẩn hoá theo vị trí mới nhất. |
 | `status` | `"active"` \| `"dissipated"` | `active` nếu còn trong danh sách bão đang hoạt động; ngược lại tra historical track. |
-| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | Cường độ mới nhất. |
+| `category` | `"category_1"` \| `"category_2"` \| `"category_3"` \| `"category_4"` \| `"category_5"` \| null | Cường độ mới nhất. |
 | `message` | string / null | Khuyến nghị an toàn tương ứng `category`. |
 | `lat`, `lon`, `updatedAt` | number, string ISO UTC | Vị trí/thời điểm mới nhất. |
 | `endedAt` | string ISO UTC \| null | `null` khi active; với historical là thời điểm quan sát chính thức cuối cùng, không phải thời điểm tan chính xác. |
@@ -203,7 +201,7 @@ Trả dữ liệu card cho màn hình **Saved Storms**. FE tự lưu danh sách 
   "data": [
     { "requestedStormId": "gdacs:TC:1001297:50", "trackingId": "gdacs:TC:1001297",
       "stormId": "gdacs:TC:1001297:51", "name": "DOLPHIN-26", "source": "gdacs",
-      "area": "PO", "status": "active", "category": 5,
+      "area": "PO", "status": "active", "category": "category_5",
       "message": "Extreme danger. Leave immediately if ordered.", "lat": 27, "lon": 124.8,
       "updatedAt": "2026-08-08T12:00:00.000Z", "endedAt": null },
     { "requestedStormId": "nhc:EP072025", "trackingId": "nhc:EP072025",
@@ -232,7 +230,7 @@ Trả dữ liệu card cho màn hình **Saved Storms**. FE tự lưu danh sách 
 | `stormId`, `name` | string | |
 | `source` | `"nhc"` \| `"gdacs"` | |
 | `area` | `"PO"` \| `"AO"` \| `"IO"` \| `"SO"` \| `"AR"` | Vùng đại dương chuẩn hoá theo vị trí observed/forecast mới nhất. |
-| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | Cường độ hiện tại từ điểm observed mới nhất. `null` nếu chỉ là áp thấp/bão nhiệt đới hoặc provider không có cường độ. |
+| `category` | `"category_1"` \| `"category_2"` \| `"category_3"` \| `"category_4"` \| `"category_5"` \| null | Cường độ hiện tại từ điểm observed mới nhất. `null` nếu chỉ là áp thấp/bão nhiệt đới hoặc provider không có cường độ. |
 | `message` | string \| null | Khuyến nghị an toàn tương ứng `category`; `null` khi category là `null`. |
 | `issuedAt` | string ISO UTC | Thời điểm bản tin |
 | `cachedUntil` | string ISO UTC \| null | Cache 10 phút (tạm thời cho giai đoạn test) |
@@ -246,7 +244,7 @@ Mỗi điểm trong `observed` / `forecast`:
 | `lat`, `lon` | number | độ |
 | `datetime` | string | ISO UTC |
 | `windSpeed` | number \| null | **knot** |
-| `category` | `1` \| `2` \| `3` \| `4` \| `5` \| null | `null` nếu chưa đạt hurricane Category 1 hoặc provider không có cường độ |
+| `category` | `"category_1"` \| `"category_2"` \| `"category_3"` \| `"category_4"` \| `"category_5"` \| null | `null` nếu chưa đạt hurricane Category 1 hoặc provider không có cường độ |
 | `message` | string \| null | Khuyến nghị an toàn tương ứng category |
 | `forecastHour` | number | **giờ** kể từ `issuedAt` — **chỉ có trong `forecast`** |
 
@@ -254,7 +252,7 @@ Mỗi điểm trong `observed` / `forecast`:
 { "ok": true, 
 "data": {
   "stormId": "nhc:AL092025", "name": "Imelda", "source": "nhc",
-  "area": "AO", "category": 1,
+  "area": "AO", "category": "category_1",
   "message": "Secure loose items, check emergency supplies now",
   "issuedAt": "2025-09-30T00:00:00.000Z",
   "cachedUntil": "2025-09-30T02:00:00.000Z",
@@ -264,7 +262,7 @@ Mỗi điểm trong `observed` / `forecast`:
   ],
   "forecast": [
     { "lat": 29.1, "lon": -77.0, "datetime": "2025-09-30T12:00:00.000Z",
-      "forecastHour": 12, "windSpeed": 65, "category": 1,
+      "forecastHour": 12, "windSpeed": 65, "category": "category_1",
       "message": "Secure loose items, check emergency supplies now" }
   ]
 } }
@@ -276,11 +274,11 @@ Mỗi điểm trong `observed` / `forecast`:
 
 | Category | Message |
 | --- | --- |
-| `1` | Secure loose items, check emergency supplies now |
-| `2` | Review evacuation route. Power outages likely |
-| `3` | Major hurricane. Follow evacuation orders if issued |
-| `4` | Catastrophic winds. Evacuate now if advised. |
-| `5` | Extreme danger. Leave immediately if ordered. |
+| `category_1` | Secure loose items, check emergency supplies now |
+| `category_2` | Review evacuation route. Power outages likely |
+| `category_3` | Major hurricane. Follow evacuation orders if issued |
+| `category_4` | Catastrophic winds. Evacuate now if advised. |
+| `category_5` | Extreme danger. Leave immediately if ordered. |
 
 **Lỗi:** 400 `stormId` sai định dạng · 404 không có bão · 502 provider lỗi.
 
@@ -314,7 +312,7 @@ Mỗi điểm `history`: `lat`, `lon` (độ), `datetime` (ISO UTC), `windSpeed`
     "cachedUntil": "2026-08-10T02:00:00.000Z",
     "history": [
       { "lat": 16.5, "lon": -23.1, "datetime": "2025-08-11T00:00:00.000Z",
-        "windSpeed": 30, "category": "tropical_depression" }
+        "windSpeed": 30, "category": null }
     ]
   }
 }
@@ -485,8 +483,8 @@ Tile ảnh bản đồ. **Trả PNG, không phải JSON.**
 | Param | Giá trị | Ghi chú |
 | --- | --- | --- |
 | `layer` | `windSpeed` / `temperature` / `pressure` / `precipitation` | `windSpeed` = layer gió |
-| `z` | Số nguyên **2–7** | Zoom level |
-| `x` | Số nguyên `0 … 2^z − 1` | z=2 → 0…3 · z=7 → 0…127 |
+| `z` | Số nguyên **0–12** | Zoom level |
+| `x` | Số nguyên `0 … 2^z − 1` | z=0 → 0 · z=12 → 0…4095 |
 | `y` | Số nguyên `0 … 2^z − 1` | |
 
 **Output 200:** body là ảnh, header `Content-Type: image/png`. Cache 20 phút (tạm thời cho giai đoạn test).
@@ -499,7 +497,7 @@ https://project3.vuonghieu.site/v1/map-tiles/temperature/{z}/{x}/{y}
 
 Ví dụ: `GET /v1/map-tiles/pressure/5/25/15`
 
-**Lỗi (JSON):** 400 `layer` sai · 400 `z` ngoài 2–7 · 400 `x`/`y` ngoài lưới · 502.
+**Lỗi (JSON):** 400 `layer` sai · 400 `z` ngoài 0–12 · 400 `x`/`y` ngoài lưới · 502.
 
 ---
 
@@ -513,7 +511,7 @@ Manifest radar RainViewer để FE tự ghép tile.
 
 | Field | Kiểu | Ghi chú |
 | --- | --- | --- |
-| `source` | string | `"rainviewer"` ở live mode, `"fixture"` ở fixture mode |
+| `source` | `"rainviewer"` | Luôn đọc manifest RainViewer, kể cả fixture mode |
 | `attribution`, `attributionUrl` | string | **Bắt buộc hiển thị** theo điều khoản RainViewer |
 | `host` | string | |
 | `tileTemplate` | string | Thay `{path}`, `{z}`, `{x}`, `{y}` |
@@ -646,27 +644,30 @@ STORM_DATA_MODE=fixture
 Sau khi restart, các API storm sau luôn có dữ liệu local, dựa trên các profile bão thật/lịch sử: `/v1/storms`, `/track`, `/cone`, `/history-track`, `GET /v1/storms/demo` và `POST /v1/storms/tracking`. Các `stormId` fixture ổn định để FE có thể subscribe và test luồng detail:
 
 ```text
-nhc:AL012026         active, tropical depression
-nhc:AL022026         active, tropical storm
+nhc:AL012026         active, category null
+nhc:AL022026         active, category null
 nhc:AL032026         active, category 1
 nhc:EP072026         active, category 3
 nhc:EP082026         active, category 4
-nhc:CP012026         active, tropical storm
+nhc:CP012026         active, category null
 nhc:CP022026         active, category 2
 gdacs:TC:1001297:51  active, category 5, Orange
-gdacs:TC:1001432:3   active, tropical storm, Red
-nhc:EP032025         historical, dissipated
+gdacs:TC:1001432:3   active, category null, Red
+
+# Dùng trong POST /v1/storms/tracking — đều trả status: dissipated
+nhc:AL052025, nhc:AL092025, nhc:AL132025, nhc:EP012025
+nhc:EP032025, nhc:EP052025, nhc:CP012025, nhc:CP022025
 ```
 
-Fixture mode phủ luôn `/spaghetti`, weather, map/radar và các API ghi dữ liệu; tất cả đều **đồng bộ với 9 bão active fixture** và không gọi upstream:
+Fixture mode phủ `/spaghetti`, weather và các API ghi dữ liệu; các dữ liệu này **đồng bộ với 9 bão active fixture**. Map/radar vẫn gọi provider thật:
 
 | API | Data fake |
 | --- | --- |
 | `/v1/storms/:stormId/spaghetti` | 3 model `AVNO`, `AEMN`, `NVGM` cho mọi bão NHC active, gồm Atlantic, Eastern Pacific và Central Pacific (`CP`); mỗi model 5 điểm (`forecastHour` 12/24/36/48/72) toả ra từ tâm bão. NHC không active → `not_available`; `gdacs:*` → `not_supported`. |
 | `/v1/weather/current` | Tọa độ **trong bán kính 400 km** quanh một bão fixture trả thời tiết bão (`Thunderstorm`, gió theo đúng `windSpeed` của bão đó, mưa lớn, tầm nhìn giảm, `pop` tới 1). Ngoài bán kính trả ngày quang mây. |
 | `/v1/weather/forecast` | `hourly` là các mốc 3 giờ phủ 24 giờ kế tiếp từ lúc gọi API, `daily` 5 điểm (12:00 UTC mỗi ngày) — cùng công thức với `/weather/current` nên 2 API luôn khớp nhau. |
-| `/v1/map-tiles/:layer/:z/:x/:y` | PNG màu 256×256 sinh local, xác định theo layer/tile coordinate. Có đủ `windSpeed`, `temperature`, `pressure`, `precipitation`. |
-| `/v1/radar` | Manifest radar mẫu (`source: "fixture"`), với `tileTemplate` trỏ vào map tile local ở trên. |
+| `/v1/map-tiles/:layer/:z/:x/:y` | Proxy tile OpenWeather thật. Cần `OPENWEATHER_API_KEY`; lỗi provider trả 502. |
+| `/v1/radar` | Manifest RainViewer thật (`source: "rainviewer"`). |
 | `/v1/devices`, storm/region subscription | Store trong RAM, giữ nguyên hành vi idempotent; dữ liệu reset khi restart API. Không cần MongoDB. |
 | `/v1/notifications/send` | Nhận request hợp lệ và trả `sent: true`, nhưng không kết nối APNs hay gửi push thật. |
 
@@ -724,7 +725,7 @@ docker compose restart api
 Kết quả (đã test thật):
 
 ```
-/v1/storms?region=us-nhc     -> 2 bão: Humberto (120 kt, category_4), Imelda (55 kt, tropical_storm)
+/v1/storms?region=us-nhc     -> 2 bão: Humberto (120 kt, category_4), Imelda (55 kt, category null)
 /nhc:AL092025/track          -> observed 1 điểm + forecast 8 điểm, windSpeed 55 kt
 /nhc:AL092025/cone           -> availability=available, geometryKind=forecast_cone, có geojson
 ```

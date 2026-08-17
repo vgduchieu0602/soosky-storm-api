@@ -67,7 +67,7 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         lon: -45.8,
         datetime: "2026-08-08T06:00:00.000Z",
         windSpeed: 30,
-        category: "tropical_depression",
+        category: null,
         alertLevel: null,
         watchWarning: null,
     },
@@ -80,7 +80,7 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         lon: -77.8,
         datetime: "2026-07-19T18:00:00.000Z",
         windSpeed: 60,
-        category: "tropical_storm",
+        category: null,
         alertLevel: null,
         watchWarning: "Storm surge watch/warning advisory 2026-07-19T18:00:00.000Z",
     },
@@ -132,7 +132,7 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         lon: -160.4,
         datetime: "2026-08-08T06:00:00.000Z",
         windSpeed: 50,
-        category: "tropical_storm",
+        category: null,
         alertLevel: null,
         watchWarning: null,
     },
@@ -173,7 +173,7 @@ const ACTIVE_STORMS: readonly StormSummary[] = [
         lon: 121.4,
         datetime: "2026-08-08T09:00:00.000Z",
         windSpeed: 45,
-        category: "tropical_storm",
+        category: null,
         alertLevel: "Red",
         watchWarning: null,
     },
@@ -193,11 +193,11 @@ const HISTORICAL_STORMS: Readonly<Record<string, { name: string; history: Histor
     "nhc:AL052025": makeHistoricalProfile("ERIN", 18.2, -43.6, "2025-08-15T00:00:00.000Z", 85, "category_1"),
     "nhc:AL092025": makeHistoricalProfile("IMELDA", 28.1, -77.9, "2025-09-30T00:00:00.000Z", 65, "category_1"),
     "nhc:AL132025": makeHistoricalProfile("MELISSA", 17.3, -61.4, "2025-10-28T00:00:00.000Z", 100, "category_3"),
-    "nhc:EP012025": makeHistoricalProfile("ALVIN", 14.4, -108.7, "2025-05-31T00:00:00.000Z", 45, "tropical_storm"),
+    "nhc:EP012025": makeHistoricalProfile("ALVIN", 14.4, -108.7, "2025-05-31T00:00:00.000Z", 45, null),
     "nhc:EP032025": makeHistoricalProfile("EP032025", 15, -120, "2025-08-03T00:00:00.000Z", 65, "category_1"),
     "nhc:EP052025": makeHistoricalProfile("ERICK", 15.8, -104.1, "2025-06-19T00:00:00.000Z", 140, "category_5"),
     "nhc:CP012025": makeHistoricalProfile("IONA", 13.4, -158.1, "2025-08-01T00:00:00.000Z", 90, "category_2"),
-    "nhc:CP022025": makeHistoricalProfile("KELI", 16.1, -167.5, "2025-08-18T00:00:00.000Z", 45, "tropical_storm"),
+    "nhc:CP022025": makeHistoricalProfile("KELI", 16.1, -167.5, "2025-08-18T00:00:00.000Z", 45, null),
 };
 
 function makeNhcTrack (storm: StormSummary): StormTrack {
@@ -321,7 +321,7 @@ function makeHistoricalProfile (
             lon: lon + 2.4,
             datetime: new Date(Date.parse(datetime) - 12 * 3_600_000).toISOString(),
             windSpeed: Math.max(25, windSpeed - 20),
-            category: "tropical_storm",
+            category: getCategory(Math.max(25, windSpeed - 20)),
         }, {
             lat,
             lon,
@@ -338,9 +338,7 @@ function getCategory (windSpeed: number): StormSummary["category"] {
     if (windSpeed >= 96) return "category_3";
     if (windSpeed >= 83) return "category_2";
     if (windSpeed >= 64) return "category_1";
-    if (windSpeed >= 34) return "tropical_storm";
-
-    return "tropical_depression";
+    return null;
 }
 
 function cloneStormSummary (storm: StormSummary): StormSummary {

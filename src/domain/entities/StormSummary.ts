@@ -4,14 +4,11 @@ export type { StormCategory, StormSource };
 type StormSource = "nhc" | "gdacs";
 
 type StormCategory =
-    | "tropical_depression"
-    | "tropical_storm"
     | "category_1"
     | "category_2"
     | "category_3"
     | "category_4"
-    | "category_5"
-    | "unknown";
+    | "category_5";
 
 interface StormSummary {
     stormId: string;
@@ -24,7 +21,7 @@ interface StormSummary {
     lon: number;
     datetime: string;
     windSpeed: number | null;
-    category: StormCategory;
+    category: StormCategory | null;
     /** GDACS publishes Green/Orange/Red; NHC's active-storm feed has no equivalent. */
     alertLevel: string | null;
     /** NHC's current storm-surge watch/warning advisory, when published. */

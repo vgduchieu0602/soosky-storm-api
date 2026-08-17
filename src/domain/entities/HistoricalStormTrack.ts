@@ -8,7 +8,7 @@ interface HistoricalStormTrackPoint {
     lon: number;
     datetime: string;
     windSpeed: number | null;
-    category: StormCategory;
+    category: StormCategory | null;
 }
 
 interface HistoricalStormTrack {

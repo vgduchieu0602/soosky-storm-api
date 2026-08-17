@@ -152,7 +152,7 @@ function detectChanges (storm: StormSummary, previous: StormState | null): Storm
     const direction = getMovementDirection(storm, previous);
 
     if (storm.category !== previous.category) {
-        alerts.push(toAlert(storm, "category_change", storm.category, direction));
+        alerts.push(toAlert(storm, "category_change", storm.category ?? "null", direction));
     }
 
     if (storm.alertLevel !== null && storm.alertLevel !== previous.alertLevel) {

@@ -1,3 +1,5 @@
+import { StormCategory } from "./StormSummary.js";
+
 export { STORM_ALERT_TYPES };
 export type { StormAlert as default, StormAlertType };
 
@@ -22,7 +24,7 @@ interface StormAlert {
     lat: number;
     lon: number;
     windSpeed: number | null;
-    category: string;
+    category: StormCategory | null;
     alertLevel: string | null;
     watchWarning: string | null;
     direction: string | null;

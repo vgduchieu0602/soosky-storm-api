@@ -18,15 +18,15 @@ test("fixture storm repository provides diverse active storms with complete deta
         "gdacs:TC:1001432:3",
     ]);
     assert.deepEqual(activeStorms.map((storm) => storm.category), [
-        "tropical_depression",
-        "tropical_storm",
+        null,
+        null,
         "category_1",
         "category_3",
         "category_4",
-        "tropical_storm",
+        null,
         "category_2",
         "category_5",
-        "tropical_storm",
+        null,
     ]);
 
     for (const storm of activeStorms) {
@@ -40,4 +40,26 @@ test("fixture storm repository provides diverse active storms with complete deta
     const history = await repository.getHistoricalStormTrack("nhc:EP032025");
     assert.equal(history.availability, "available");
     assert.ok(history.history.length > 1);
+});
+
+test("fixture storm repository provides every documented dissipated storm", async () => {
+    const repository = new FixtureStormRepository();
+    const stormIds = [
+        "nhc:AL052025",
+        "nhc:AL092025",
+        "nhc:AL132025",
+        "nhc:EP012025",
+        "nhc:EP032025",
+        "nhc:EP052025",
+        "nhc:CP012025",
+        "nhc:CP022025",
+    ];
+
+    const histories = await Promise.all(stormIds.map((stormId) => repository.getHistoricalStormTrack(stormId)));
+
+    assert.ok(histories.every((history) => history.availability === "available"));
+    assert.ok(histories.every((history) => history.history.length > 0));
+    assert.ok(histories.every((history) => history.history.every((point) => {
+        return point.category === null || point.category.startsWith("category_");
+    })));
 });

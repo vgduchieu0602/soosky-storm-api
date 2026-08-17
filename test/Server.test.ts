@@ -79,7 +79,7 @@ class TestStormRepository implements StormRepository {
         lon: -130.2,
         datetime: "2026-07-31T21:00:00.000Z",
         windSpeed: 50,
-        category: "tropical_storm",
+        category: null,
     };
 
     public readonly track: StormTrack = {
@@ -167,14 +167,14 @@ class TestStormRepository implements StormRepository {
             lon: 124.8,
             datetime: "2026-08-08T12:00:00.000Z",
             windSpeed: null,
-            category: "unknown",
+            category: null,
         }],
         forecast: [{
             lat: 27.3,
             lon: 123.5,
             datetime: "2026-08-09T00:00:00.000Z",
             windSpeed: null,
-            category: "unknown",
+            category: null,
             forecastHour: 12,
         }],
     };
@@ -692,7 +692,7 @@ test("POST /v1/storms/tracking resolves active and dissipated storm cards in one
             source: "gdacs",
             area: "PO",
             status: "active",
-            category: 5,
+            category: "category_5",
             message: "Extreme danger. Leave immediately if ordered.",
             lat: 27,
             lon: 124.8,
@@ -706,7 +706,7 @@ test("POST /v1/storms/tracking resolves active and dissipated storm cards in one
             source: "nhc",
             area: "PO",
             status: "dissipated",
-            category: 1,
+            category: "category_1",
             message: "Secure loose items, check emergency supplies now",
             lat: 15,
             lon: -120,
@@ -847,11 +847,9 @@ test("GET /v1/map-tiles returns a binary OpenWeather tile", async () => {
 
 test("GET /v1/map-tiles rejects invalid layer and tile coordinates", async () => {
     const invalidLayer = await fetch(baseUrl + "/v1/map-tiles/clouds/3/6/3");
-    const invalidZoom = await fetch(baseUrl + "/v1/map-tiles/windSpeed/0/0/0");
     const invalidCoordinate = await fetch(baseUrl + "/v1/map-tiles/windSpeed/3/8/3");
 
     assert.equal(invalidLayer.status, 400);
-    assert.equal(invalidZoom.status, 400);
     assert.equal(invalidCoordinate.status, 400);
 });
 
@@ -901,14 +899,14 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
             area: "PO",
             issuedAt: "2026-07-31T21:00:00.000Z",
             cachedUntil: "2026-07-31T23:00:00.000Z",
-            category: 2,
+            category: "category_2",
             message: "Review evacuation route. Power outages likely",
             observed: [{
                 lat: 22.3,
                 lon: -130.2,
                 datetime: "2026-07-31T21:00:00.000Z",
                 windSpeed: 90,
-                category: 2,
+                category: "category_2",
                 message: "Review evacuation route. Power outages likely",
             }],
             forecast: [],
@@ -971,11 +969,11 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
 test("GET /v1/storms/:stormId/track maps every hurricane category to its safety message", async () => {
     const original = stormRepository.track.observed[0]!;
     const examples = [
-        ["category_1", 1, "Secure loose items, check emergency supplies now"],
-        ["category_2", 2, "Review evacuation route. Power outages likely"],
-        ["category_3", 3, "Major hurricane. Follow evacuation orders if issued"],
-        ["category_4", 4, "Catastrophic winds. Evacuate now if advised."],
-        ["category_5", 5, "Extreme danger. Leave immediately if ordered."],
+        ["category_1", "category_1", "Secure loose items, check emergency supplies now"],
+        ["category_2", "category_2", "Review evacuation route. Power outages likely"],
+        ["category_3", "category_3", "Major hurricane. Follow evacuation orders if issued"],
+        ["category_4", "category_4", "Catastrophic winds. Evacuate now if advised."],
+        ["category_5", "category_5", "Extreme danger. Leave immediately if ordered."],
     ] as const;
 
     try {
@@ -1302,7 +1300,7 @@ test("GET /v1/weather/forecast rejects invalid coordinates beyond both bounds", 
 });
 
 test("GET /v1/map-tiles serves the minimum and maximum supported zoom", async (context) => {
-    for (const path of ["windSpeed/2/3/1", "temperature/7/101/57", "pressure/7/101/57"]) {
+    for (const path of ["windSpeed/0/0/0", "temperature/1/1/1", "pressure/12/101/57"]) {
         await context.test(path, async () => {
             const response = await fetch(baseUrl + "/v1/map-tiles/" + path);
 
@@ -1324,7 +1322,7 @@ test("GET /v1/map-tiles serves every supported layer", async (context) => {
 });
 
 test("GET /v1/map-tiles rejects a zoom outside the supported range", async (context) => {
-    for (const path of ["windSpeed/0/0/0", "windSpeed/1/1/1", "windSpeed/8/1/1", "windSpeed/-1/0/0", "windSpeed/abc/0/0"]) {
+    for (const path of ["windSpeed/13/1/1", "windSpeed/-1/0/0", "windSpeed/abc/0/0"]) {
         await context.test(path, async () => {
             const response = await fetch(baseUrl + "/v1/map-tiles/" + path);
 

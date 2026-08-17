@@ -21,7 +21,7 @@ test("parses NHC forecast KML placemarks into forecast points", async () => {
             datetime: "2026-08-01T09:00:00.000Z",
             forecastHour: 12,
             windSpeed: 45,
-            category: "tropical_storm",
+            category: null,
         },
         {
             lat: 23.6,
@@ -29,7 +29,7 @@ test("parses NHC forecast KML placemarks into forecast points", async () => {
             datetime: "2026-08-01T21:00:00.000Z",
             forecastHour: 24,
             windSpeed: 45,
-            category: "tropical_storm",
+            category: null,
         },
     ]);
 });

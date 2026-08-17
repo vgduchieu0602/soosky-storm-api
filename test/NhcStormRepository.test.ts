@@ -40,7 +40,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
             lon: -130.2,
             datetime: "2026-07-31T21:00:00.000Z",
             windSpeed: 50,
-            category: "tropical_storm",
+            category: null,
             alertLevel: null,
             watchWarning: "Storm surge watch/warning advisory 2026-07-31T21:00:00.000Z",
         },
@@ -58,7 +58,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
                 lon: -130.2,
                 datetime: "2026-07-31T21:00:00.000Z",
                 windSpeed: 50,
-                category: "tropical_storm",
+                category: null,
             },
         ],
         forecast: [
@@ -68,7 +68,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
                 datetime: "2026-08-01T09:00:00.000Z",
                 forecastHour: 12,
                 windSpeed: 45,
-                category: "tropical_storm",
+                category: null,
             },
             {
                 lat: 23.6,
@@ -76,7 +76,7 @@ test("NHC storm repository normalizes active storms and a KMZ forecast track", a
                 datetime: "2026-08-01T21:00:00.000Z",
                 forecastHour: 24,
                 windSpeed: 45,
-                category: "tropical_storm",
+                category: null,
             },
         ],
     });

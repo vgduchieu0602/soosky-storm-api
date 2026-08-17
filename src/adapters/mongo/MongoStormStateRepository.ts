@@ -37,9 +37,17 @@ function toStormState (document: Record<string, unknown>): StormState {
         lat: Number(document.lat),
         lon: Number(document.lon),
         windSpeed: typeof document.windSpeed === "number" ? document.windSpeed : null,
-        category: String(document.category) as StormState["category"],
+        category: isStormCategory(document.category) ? document.category : null,
         alertLevel: typeof document.alertLevel === "string" ? document.alertLevel : null,
         watchWarning: typeof document.watchWarning === "string" ? document.watchWarning : null,
         bearing: typeof document.bearing === "number" ? document.bearing : null,
     };
+}
+
+function isStormCategory (value: unknown): value is NonNullable<StormState["category"]> {
+    return value === "category_1"
+        || value === "category_2"
+        || value === "category_3"
+        || value === "category_4"
+        || value === "category_5";
 }

@@ -10,7 +10,7 @@ interface TrackedStorm {
     source: StormSource;
     area: string | null;
     status: "active" | "dissipated";
-    category: StormCategory;
+    category: StormCategory | null;
     lat: number;
     lon: number;
     updatedAt: string;

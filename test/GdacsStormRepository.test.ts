@@ -71,7 +71,7 @@ test("GDACS storm repository drops an event intensity published in an unexpected
     const [storm] = await repository.getActiveStorms();
 
     assert.equal(storm?.windSpeed, null);
-    assert.equal(storm?.category, "unknown");
+    assert.equal(storm?.category, null);
 });
 
 test("GDACS storm repository skips event list features without a usable identifier or position", async () => {
@@ -139,13 +139,13 @@ test("GDACS storm repository splits the event geometry track into observed and f
         issuedAt: "2026-08-08T16:50:16.000Z",
         cachedUntil: null,
         observed: [
-            { lat: 27, lon: 126, datetime: "2026-08-08T00:00:00.000Z", windSpeed: null, category: "unknown" },
-            { lat: 26.9, lon: 125.2, datetime: "2026-08-08T06:00:00.000Z", windSpeed: null, category: "unknown" },
-            { lat: 27, lon: 124.8, datetime: "2026-08-08T12:00:00.000Z", windSpeed: null, category: "unknown" },
+            { lat: 27, lon: 126, datetime: "2026-08-08T00:00:00.000Z", windSpeed: null, category: null },
+            { lat: 26.9, lon: 125.2, datetime: "2026-08-08T06:00:00.000Z", windSpeed: null, category: null },
+            { lat: 27, lon: 124.8, datetime: "2026-08-08T12:00:00.000Z", windSpeed: null, category: null },
         ],
         forecast: [
-            { lat: 27.3, lon: 123.5, datetime: "2026-08-09T00:00:00.000Z", windSpeed: null, category: "unknown", forecastHour: 12 },
-            { lat: 27.9, lon: 121.4, datetime: "2026-08-09T12:00:00.000Z", windSpeed: null, category: "unknown", forecastHour: 24 },
+            { lat: 27.3, lon: 123.5, datetime: "2026-08-09T00:00:00.000Z", windSpeed: null, category: null, forecastHour: 12 },
+            { lat: 27.9, lon: 121.4, datetime: "2026-08-09T12:00:00.000Z", windSpeed: null, category: null, forecastHour: 24 },
         ],
     });
     assert.deepEqual(requestedUrls, [
@@ -187,9 +187,9 @@ test("GDACS storm repository returns a chronological history track without exact
         cachedUntil: null,
         availability: "available",
         history: [
-            { lat: 27, lon: 126, datetime: "2026-08-08T00:00:00.000Z", windSpeed: null, category: "unknown" },
-            { lat: 26.9, lon: 125.2, datetime: "2026-08-08T06:00:00.000Z", windSpeed: null, category: "unknown" },
-            { lat: 27, lon: 124.8, datetime: "2026-08-08T12:00:00.000Z", windSpeed: null, category: "unknown" },
+            { lat: 27, lon: 126, datetime: "2026-08-08T00:00:00.000Z", windSpeed: null, category: null },
+            { lat: 26.9, lon: 125.2, datetime: "2026-08-08T06:00:00.000Z", windSpeed: null, category: null },
+            { lat: 27, lon: 124.8, datetime: "2026-08-08T12:00:00.000Z", windSpeed: null, category: null },
         ],
     });
 });

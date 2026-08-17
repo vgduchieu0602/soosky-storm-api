@@ -365,7 +365,7 @@ function storm (overrides: Partial<StormSummary>): StormSummary {
         lon: -130.2,
         datetime: "2026-07-31T21:00:00.000Z",
         windSpeed: 50,
-        category: "tropical_storm" as StormCategory,
+        category: null,
         alertLevel: null,
         ...overrides,
     };

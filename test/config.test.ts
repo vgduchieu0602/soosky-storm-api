@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const CACHE_TTL_KEYS = [
@@ -61,4 +62,12 @@ test("cache TTLs default to production values when the environment does not over
             process.env[key] = value;
         }
     }
+});
+
+test("fixture mode still wires map and radar to their live providers", async () => {
+    const appSource = await readFile(new URL("../src/app.ts", import.meta.url), "utf-8");
+
+    assert.doesNotMatch(appSource, /fixtureStormRepository \? new Fixture(MapTile|Radar)Repository/);
+    assert.match(appSource, /new OpenWeatherMapTileRepository\(OPENWEATHER_API_KEY\)/);
+    assert.match(appSource, /new RainViewerRadarRepository\(\)/);
 });

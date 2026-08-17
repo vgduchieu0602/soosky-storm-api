@@ -55,15 +55,15 @@ Mọi ID trong bảng này có `track` và `cone`. Mọi ID NHC cũng có `spagh
 
 | `stormId` | Tên | Category | Toạ độ | Trạng thái cần test |
 | --- | --- | --- | --- | --- |
-| `nhc:AL012026` | TROPICAL DEPRESSION ANDREW | `tropical_depression`, 30 kt | 12.6, -45.8 | Category `null` trong track response. |
-| `nhc:AL022026` | TROPICAL STORM BERYL | `tropical_storm`, 60 kt | 22.4, -77.8 | Có `watchWarning`. |
+| `nhc:AL012026` | TROPICAL DEPRESSION ANDREW | `null`, 30 kt | 12.6, -45.8 | Category `null` trong track response. |
+| `nhc:AL022026` | TROPICAL STORM BERYL | `null`, 60 kt | 22.4, -77.8 | Có `watchWarning`. |
 | `nhc:AL032026` | HURRICANE CHARLIE | `category_1`, 75 kt | 25.1, -68.3 | Atlantic, hurricane watch. |
 | `nhc:EP072026` | HURRICANE GENEVIEVE | `category_3`, 100 kt | 19.4, -116.6 | Weather bão mạnh để test. |
 | `nhc:EP082026` | HURRICANE HILDA | `category_4`, 120 kt | 15.8, -109.2 | Eastern Pacific category 4. |
-| `nhc:CP012026` | TROPICAL STORM IONA | `tropical_storm`, 50 kt | 13.7, -160.4 | Central Pacific (`CP`). |
+| `nhc:CP012026` | TROPICAL STORM IONA | `null`, 50 kt | 13.7, -160.4 | Central Pacific (`CP`). |
 | `nhc:CP022026` | HURRICANE KELI | `category_2`, 90 kt | 17.2, -171.6 | Central Pacific (`CP`), có watch. |
 | `gdacs:TC:1001297:51` | DOLPHIN-26 | `category_5`, 145 kt | 27, 124.8 | `alertLevel: "Orange"`, GDACS geometry. |
-| `gdacs:TC:1001432:3` | MANGKHUT-26 | `tropical_storm`, 45 kt | 18.3, 121.4 | `alertLevel: "Red"`, GDACS geometry. |
+| `gdacs:TC:1001432:3` | MANGKHUT-26 | `null`, 45 kt | 18.3, 121.4 | `alertLevel: "Red"`, GDACS geometry. |
 
 ### Bão Lịch Sử
 
@@ -130,7 +130,7 @@ curl -s "$BASE/v1/storms/gdacs:TC:1001297:51/track"
 | NHC active | 1 `observed`, 3 `forecast` với `forecastHour` 12, 24, 48. |
 | GDACS active | 2 `observed`, `forecast: []`. |
 | NHC tropical depression/storm | `category: null` trong response format. |
-| NHC hurricane | `category` là number 1-5 và có `message`. |
+| NHC hurricane | `category` là `category_1`…`category_5` và có `message`. |
 | `nhc:AL092026` | `404 STORM_NOT_FOUND`. |
 | `EP072026` | `400 BAD_REQUEST`. |
 
@@ -222,10 +222,10 @@ curl -s "$BASE/v1/radar"
 
 | Case | Kỳ vọng |
 | --- | --- |
-| Map layers | `windSpeed`, `temperature`, `pressure`, `precipitation` đều trả PNG màu local. |
-| Invalid layer, zoom <2 hoặc >7, invalid x/y | `400 BAD_REQUEST`. |
-| Radar | `source: "fixture"`, có `past`, `nowcast`, `tileTemplate: "/v1/map-tiles/precipitation/{z}/{x}/{y}"`. |
-| Radar tile | Dùng `tileTemplate` với API base URL để tải tile precipitation local. |
+| Map layers | `windSpeed`, `temperature`, `pressure`, `precipitation` đều proxy PNG từ OpenWeather. |
+| Invalid layer, zoom <0 hoặc >12, invalid x/y | `400 BAD_REQUEST`. |
+| Radar | `source: "rainviewer"`, có `past`, `nowcast`, `tileTemplate` từ RainViewer. |
+| Radar tile | Dùng `tileTemplate` RainViewer sau khi thay `{path}`, `{z}`, `{x}`, `{y}`. |
 
 ## Checklist Device, Subscription Và Push
 

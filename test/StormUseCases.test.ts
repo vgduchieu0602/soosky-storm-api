@@ -22,7 +22,7 @@ test("Storms use case returns active storm summaries from the repository", async
         lon: -130.2,
         datetime: "2026-07-31T21:00:00.000Z",
         windSpeed: 50,
-        category: "tropical_storm",
+        category: null,
     };
     const repository = new MemoryStormRepository([summary]);
     const useCase = new GetActiveStormsUseCase(repository);

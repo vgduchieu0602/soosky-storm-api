@@ -8,7 +8,7 @@ interface StormTrackPoint {
     lon: number;
     datetime: string;
     windSpeed: number | null;
-    category: StormCategory;
+    category: StormCategory | null;
     forecastHour?: number;
 }
 

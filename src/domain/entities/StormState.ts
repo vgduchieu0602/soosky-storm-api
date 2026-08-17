@@ -12,7 +12,7 @@ interface StormState {
     lat: number;
     lon: number;
     windSpeed: number | null;
-    category: StormCategory;
+    category: StormCategory | null;
     alertLevel: string | null;
     watchWarning: string | null;
     /** Compass bearing of the storm's last observed movement, null until it moves. */

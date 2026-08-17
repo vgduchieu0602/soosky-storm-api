@@ -10,14 +10,11 @@ interface StormAlertMessage {
 }
 
 const CATEGORY_LABELS: Readonly<Record<string, string>> = {
-    tropical_depression: "a tropical depression",
-    tropical_storm: "a tropical storm",
     category_1: "a Category 1 hurricane",
     category_2: "a Category 2 hurricane",
     category_3: "a Category 3 hurricane",
     category_4: "a Category 4 hurricane",
     category_5: "a Category 5 hurricane",
-    unknown: "of unknown strength",
 };
 
 /**
@@ -82,13 +79,13 @@ function buildStormAlertMessage (alert: StormAlert, distanceKm: number | null): 
 }
 
 function withSafety (alert: StormAlert, description: string): string {
-    const safety = CATEGORY_SAFETY_MESSAGES[alert.category as StormCategory];
+    const safety = alert.category === null ? null : CATEGORY_SAFETY_MESSAGES[alert.category];
 
     return safety ? description + " " + safety : description;
 }
 
-function describeCategory (category: string): string {
-    return CATEGORY_LABELS[category] ?? "a tropical cyclone";
+function describeCategory (category: StormCategory | null): string {
+    return category === null ? "a tropical cyclone" : CATEGORY_LABELS[category] ?? "a tropical cyclone";
 }
 
 /** Wind speeds are stored in knots and shown in km/h, matching the message examples. */

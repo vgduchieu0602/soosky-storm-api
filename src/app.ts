@@ -9,8 +9,6 @@ import CachedHistoricalStormTrackRepository from "./adapters/cache/CachedHistori
 import FixtureStormRepository from "./adapters/fixture/FixtureStormRepository.js";
 import FixtureSpaghettiRepository from "./adapters/fixture/FixtureSpaghettiRepository.js";
 import FixtureWeatherRepository from "./adapters/fixture/FixtureWeatherRepository.js";
-import FixtureMapTileRepository from "./adapters/fixture/FixtureMapTileRepository.js";
-import FixtureRadarRepository from "./adapters/fixture/FixtureRadarRepository.js";
 import FixturePushNotificationRepository from "./adapters/fixture/FixturePushNotificationRepository.js";
 import FixtureDeviceRepository from "./adapters/fixture/FixtureDeviceRepository.js";
 import FixtureStormSubscriptionRepository from "./adapters/fixture/FixtureStormSubscriptionRepository.js";
@@ -124,11 +122,11 @@ const currentWeatherRepository = new CachedCurrentWeatherRepository(
     CURRENT_WEATHER_CACHE_TTL_MS,
 );
 const mapTileRepository = new CachedMapTileRepository(
-    fixtureStormRepository ? new FixtureMapTileRepository() : new OpenWeatherMapTileRepository(OPENWEATHER_API_KEY),
+    new OpenWeatherMapTileRepository(OPENWEATHER_API_KEY),
     MAP_TILE_CACHE_TTL_MS,
 );
 const radarRepository = new CachedRadarRepository(
-    fixtureStormRepository ? new FixtureRadarRepository() : new RainViewerRadarRepository(),
+    new RainViewerRadarRepository(),
     RADAR_CACHE_TTL_MS,
 );
 const pushNotificationRepository = fixtureStormRepository
