@@ -27,6 +27,10 @@ import SubscribeToStormUseCase from "../domain/use-cases/subscription/SubscribeT
 import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
 import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
+import DetectStormAlertsUseCase from "../domain/use-cases/alert/DetectStormAlertsUseCase.js";
+import ActiveStormsRepository from "../domain/repositories/IActiveStormsRepository.js";
+import StormStateRepository from "../domain/repositories/IStormStateRepository.js";
+import TestableActiveStormsRepository from "../adapters/storm/TestableActiveStormsRepository.js";
 import ClientError from "./ClientError.js";
 import { getCacheStatus } from "../domain/cacheStatus.js";
 import formatResponseData from "./formatResponseData.js";
@@ -37,6 +41,13 @@ import RateLimiter from "./RateLimiter.js";
 
 export { Server as default };
 export type { ServerConfig, ServerUseCases };
+
+interface TestModeState {
+    readonly hiddenStormIds: Set<string>;
+    readonly testableStormRepository: TestableActiveStormsRepository;
+    readonly sourceStormRepository: ActiveStormsRepository;
+    readonly stormStateRepository: StormStateRepository;
+}
 
 interface ServerConfig {
     readonly http: {
@@ -76,6 +87,10 @@ interface ServerUseCases {
         subscribeToStorm: SubscribeToStormUseCase;
         unsubscribeFromStorm: UnsubscribeFromStormUseCase;
         saveRegionSubscription: SaveRegionSubscriptionUseCase;
+    };
+    // Test mode: only present when STORM_ALERT_TEST_MODE=true
+    test?: {
+        detectStormAlerts: DetectStormAlertsUseCase;
     };
 }
 
@@ -139,6 +154,7 @@ class Server {
         private readonly _rateLimiter: RateLimiter,
         private readonly _useCases: ServerUseCases,
         private readonly _getDatabaseStatus: () => string = () => "unknown",
+        private readonly _testModeState: TestModeState | null = null,
     ) {
         this._registerRouter();
         this._registerErrorHandler();
@@ -200,6 +216,11 @@ class Server {
 
         for (const [method, path, handler] of this._routes) {
             this._server[method](path, handler.bind(this));
+        }
+
+        // Test mode endpoint for simulating storm dissipation (only when STORM_ALERT_TEST_MODE=true)
+        if (this._testModeState) {
+            this._server.post("/v1/test/storm-alerts/:stormId/dissipate", this._POST_dissipateStorm.bind(this));
         }
 
         this._server.use(() => {
@@ -462,6 +483,79 @@ class Server {
         const data = await this._useCases.storm.getHistoricalStormTrack.execute({ stormId });
 
         this._sendData(response, data);
+    }
+
+    /** Test endpoint: simulates a storm disappearing from the active storm source. */
+    private async _POST_dissipateStorm (request: Request, response: Response): Promise<void> {
+        const { hiddenStormIds, testableStormRepository, sourceStormRepository, stormStateRepository } = this._testModeState!;
+        const stormId = request.params.stormId;
+
+        if (typeof stormId !== "string" || !isTrackStormId(stormId)) {
+            throw new ClientError("Path param 'stormId' is invalid.");
+        }
+
+        // Verify the storm currently exists in the active storm source.
+        const activeStorms = await sourceStormRepository.getActiveStorms();
+        const storm = activeStorms.find((s) => s.stormId === stormId);
+
+        if (!storm) {
+            throw new ClientError("Storm not found in active storm source.", 404, "STORM_NOT_FOUND");
+        }
+
+        // Check if the storm has been observed by the alert detector (has a stored state).
+        // The tracking ID is the episode-free identity used by the alert detector.
+        const { toStormTrackingId } = await import("../domain/stormIdentity.js");
+        const trackingId = toStormTrackingId(stormId);
+        const previousStates = await stormStateRepository.listStates();
+        const previousState = previousStates.find((state) => state.trackingId === trackingId);
+
+        if (!previousState) {
+            throw new ClientError(
+                "Storm has no previous state in storm_states. The alert detector must observe the storm at least once before it can be tested for dissipation.",
+                409,
+                "STORM_NOT_READY_FOR_DISSIPATION_TEST",
+            );
+        }
+
+        // Check if the storm is already hidden (idempotency).
+        if (hiddenStormIds.has(stormId)) {
+            throw new ClientError("Storm is already simulated as dissipated.", 409, "STORM_ALREADY_DISSIPATED");
+        }
+
+        // Mark the storm as hidden (simulated dissipated).
+        testableStormRepository.hideStorm(stormId);
+
+        // Trigger the alert detection cycle directly.
+        const detectStormAlerts = this._useCases.test?.detectStormAlerts;
+        if (!detectStormAlerts) {
+            throw new ClientError("Alert detection use case not available.", 500, "INTERNAL_SERVER_ERROR");
+        }
+
+        const result = await detectStormAlerts.execute();
+
+        // Check if a storm_dissipated alert was generated for this storm.
+        const dissipatedAlert = result.alerts.find(
+            (alert) => alert.type === "storm_dissipated" && alert.trackingId === trackingId,
+        );
+
+        if (!dissipatedAlert) {
+            // This should not happen if the previous state check passed, but guard anyway.
+            hiddenStormIds.delete(stormId);
+            throw new ClientError(
+                "No dissipated alert was generated. The storm may not have been ready for dissipation test.",
+                500,
+                "STORM_NOT_READY_FOR_DISSIPATION_TEST",
+            );
+        }
+
+        this._sendData(response, {
+            stormId,
+            simulatedStatus: "dissipated",
+            alerts: result.alerts.length,
+            sent: result.sent,
+            skippedAsDuplicate: result.skippedAsDuplicate,
+            failed: result.failed,
+        });
     }
 
     private _sendData (response: Response, data: unknown, cacheSource: unknown = data): void {

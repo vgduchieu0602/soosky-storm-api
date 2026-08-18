@@ -32,6 +32,7 @@ import OpenWeatherMapTileRepository from "./adapters/openweather/OpenWeatherMapT
 import RainViewerRadarRepository from "./adapters/rainviewer/RainViewerRadarRepository.js";
 import CompositeHistoricalStormTrackRepository from "./adapters/storm/CompositeHistoricalStormTrackRepository.js";
 import CompositeStormRepository from "./adapters/storm/CompositeStormRepository.js";
+import TestableActiveStormsRepository from "./adapters/storm/TestableActiveStormsRepository.js";
 import config from "./config.js";
 import GetActiveStormsUseCase from "./domain/use-cases/storm/GetActiveStormsUseCase.js";
 import GetDemoStormsUseCase from "./domain/use-cases/storm/GetDemoStormsUseCase.js";
@@ -100,6 +101,16 @@ const sourceStormRepository = fixtureStormRepository ?? new CompositeStormReposi
     gdacsStormConeRepository,
     gdacsStormRepository,
 );
+
+// Testable wrapper for storm alert detection. When STORM_ALERT_TEST_MODE=true,
+// this allows simulating a storm disappearing from the active storm source.
+// Test mode only works with live data (STORM_DATA_MODE=live), not fixture mode.
+const isLiveMode = config.stormDataMode === "live";
+const hiddenStormIds = new Set<string>();
+const testableStormRepository = config.alerts.testMode && isLiveMode
+    ? new TestableActiveStormsRepository(sourceStormRepository, hiddenStormIds, true)
+    : sourceStormRepository;
+
 const stormRepository = new CachedStormRepository(
     sourceStormRepository,
     STORM_CACHE_TTL_MS,
@@ -151,14 +162,17 @@ const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
 const sendPushNotification = new SendPushNotificationUseCase(pushNotificationRepository);
 // Alerts read the uncached provider composite: detection latency must not be
 // bounded by the storm-list cache the HTTP endpoints use.
+// When STORM_ALERT_TEST_MODE=true, the testable wrapper filters hidden storms.
 const detectStormAlerts = new DetectStormAlertsUseCase(
-    sourceStormRepository,
+    testableStormRepository,
     stormStateRepository,
     stormSubscriptionRepository,
     regionSubscriptionRepository,
     alertDeliveryRepository,
     sendPushNotification,
 );
+// Test mode is only active when both STORM_ALERT_TEST_MODE=true and STORM_DATA_MODE=live
+const isTestModeActive = config.alerts.testMode && config.stormDataMode === "live";
 const useCases = {
     storm: {
         getActiveStorms: new GetActiveStormsUseCase(stormRepository),
@@ -190,8 +204,14 @@ const useCases = {
         unsubscribeFromStorm: new UnsubscribeFromStormUseCase(stormSubscriptionRepository),
         saveRegionSubscription: new SaveRegionSubscriptionUseCase(regionSubscriptionRepository),
     },
+    test: isTestModeActive ? { detectStormAlerts } : undefined,
 };
 const rateLimiter = new RateLimiter(config.rateLimit);
+
+// Test mode state for the test endpoint (only used when STORM_ALERT_TEST_MODE=true and STORM_DATA_MODE=live)
+const testModeState = isTestModeActive
+    ? { hiddenStormIds, testableStormRepository: testableStormRepository as TestableActiveStormsRepository, sourceStormRepository, stormStateRepository }
+    : null;
 
 (async () => {
     try {
@@ -200,6 +220,7 @@ const rateLimiter = new RateLimiter(config.rateLimit);
             rateLimiter,
             useCases,
             fixtureStormRepository ? () => "fixture" : getDatabaseStatus,
+            testModeState,
         );
 
         await server.listen();
@@ -224,3 +245,6 @@ const rateLimiter = new RateLimiter(config.rateLimit);
         process.exitCode = 1;
     }
 })();
+
+console.log("config alert testmode: ", config.alerts.testMode);
+console.log("process STORM_ALERT_MODE:", process.env.STORM_ALERT_TEST_MODE)

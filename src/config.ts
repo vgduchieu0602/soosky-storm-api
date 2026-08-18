@@ -76,6 +76,7 @@ const config = {
     alerts: {
         enabled: process.env.ALERTS_ENABLED !== "false",
         pollIntervalMs: readPositiveInt("ALERTS_POLL_INTERVAL_MS", 900_000),
+        testMode: process.env.STORM_ALERT_TEST_MODE === "true",
     },
     rateLimit: {
         enabled: process.env.RATE_LIMIT_ENABLED !== "false",
