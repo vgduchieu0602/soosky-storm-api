@@ -245,6 +245,3 @@ const testModeState = isTestModeActive
         process.exitCode = 1;
     }
 })();
-
-console.log("config alert testmode: ", config.alerts.testMode);
-console.log("process STORM_ALERT_MODE:", process.env.STORM_ALERT_TEST_MODE)

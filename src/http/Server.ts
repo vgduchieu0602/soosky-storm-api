@@ -502,6 +502,13 @@ class Server {
             throw new ClientError("Storm not found in active storm source.", 404, "STORM_NOT_FOUND");
         }
 
+        // Idempotency: once a storm is already simulated as dissipated, report it
+        // directly. This must run before the previous-state check because a prior
+        // successful dissipation removes the storm's state from storage.
+        if (hiddenStormIds.has(stormId)) {
+            throw new ClientError("Storm is already simulated as dissipated.", 409, "STORM_ALREADY_DISSIPATED");
+        }
+
         // Check if the storm has been observed by the alert detector (has a stored state).
         // The tracking ID is the episode-free identity used by the alert detector.
         const { toStormTrackingId } = await import("../domain/stormIdentity.js");
@@ -515,11 +522,6 @@ class Server {
                 409,
                 "STORM_NOT_READY_FOR_DISSIPATION_TEST",
             );
-        }
-
-        // Check if the storm is already hidden (idempotency).
-        if (hiddenStormIds.has(stormId)) {
-            throw new ClientError("Storm is already simulated as dissipated.", 409, "STORM_ALREADY_DISSIPATED");
         }
 
         // Mark the storm as hidden (simulated dissipated).
