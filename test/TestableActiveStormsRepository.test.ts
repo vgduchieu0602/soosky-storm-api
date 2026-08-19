@@ -1,68 +1,95 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import assert from "node:assert/strict";
+import test from "node:test";
 import TestableActiveStormsRepository from "../src/adapters/storm/TestableActiveStormsRepository.js";
 import StormSummary from "../src/domain/entities/StormSummary.js";
 import ActiveStormsRepository from "../src/domain/repositories/IActiveStormsRepository.js";
 
-describe("TestableActiveStormsRepository", () => {
-    const mockStorm1: StormSummary = { stormId: "nhc:AL012024", name: "Alpha", category: "TS", source: "nhc", active: true };
-    const mockStorm2: StormSummary = { stormId: "nhc:AL022024", name: "Beta", category: "TD", source: "nhc", active: true };
-    const mockStorm3: StormSummary = { stormId: "gdacs:TC:123:456", name: "Gamma", category: "TS", source: "gdacs", active: true };
+test("Testable repository passes every storm through when test mode is off", async () => {
+    const source = new CountingActiveStormsRepository();
+    const repository = new TestableActiveStormsRepository(source, new Set(), false);
 
-    let mockSourceRepository: ActiveStormsRepository;
-    let hiddenStormIds: Set<string>;
-
-    beforeEach(() => {
-        mockSourceRepository = {
-            getActiveStorms: jest.fn(async () => [mockStorm1, mockStorm2, mockStorm3]),
-        };
-        hiddenStormIds = new Set<string>();
-    });
-
-    it("should return all storms from source when testMode is false", async () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, false);
-        const storms = await repo.getActiveStorms();
-        expect(storms).toEqual([mockStorm1, mockStorm2, mockStorm3]);
-        expect(mockSourceRepository.getActiveStorms).toHaveBeenCalledTimes(1);
-    });
-
-    it("should return all storms from source when testMode is true but no storms are hidden", async () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, true);
-        const storms = await repo.getActiveStorms();
-        expect(storms).toEqual([mockStorm1, mockStorm2, mockStorm3]);
-        expect(mockSourceRepository.getActiveStorms).toHaveBeenCalledTimes(1);
-    });
-
-    it("should filter out hidden storms when testMode is true", async () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, true);
-        repo.hideStorm(mockStorm1.stormId);
-        const storms = await repo.getActiveStorms();
-        expect(storms).toEqual([mockStorm2, mockStorm3]);
-        expect(mockSourceRepository.getActiveStorms).toHaveBeenCalledTimes(1);
-    });
-
-    it("should correctly report if a storm is hidden", () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, true);
-        repo.hideStorm(mockStorm2.stormId);
-        expect(repo.isHidden(mockStorm1.stormId)).toBe(false);
-        expect(repo.isHidden(mockStorm2.stormId)).toBe(true);
-    });
-
-    it("should clear all hidden storms", async () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, true);
-        repo.hideStorm(mockStorm1.stormId);
-        repo.hideStorm(mockStorm3.stormId);
-        expect(hiddenStormIds.size).toBe(2);
-        repo.clearHidden();
-        expect(hiddenStormIds.size).toBe(0);
-        const storms = await repo.getActiveStorms();
-        expect(storms).toEqual([mockStorm1, mockStorm2, mockStorm3]);
-    });
-
-    it("should not hide storms when testMode is false, but operations still work on the set", async () => {
-        const repo = new TestableActiveStormsRepository(mockSourceRepository, hiddenStormIds, false);
-        repo.hideStorm(mockStorm1.stormId); // this just adds to the set
-        const storms = await repo.getActiveStorms(); // but the filter isn't applied
-        expect(storms).toEqual([mockStorm1, mockStorm2, mockStorm3]);
-        expect(repo.isHidden(mockStorm1.stormId)).toBe(true); // the set still knows
-    });
+    assert.deepEqual(await repository.getActiveStorms(), [ALPHA, BETA, GAMMA]);
+    assert.equal(source.calls, 1);
 });
+
+test("Testable repository passes every storm through while nothing is hidden", async () => {
+    const source = new CountingActiveStormsRepository();
+    const repository = new TestableActiveStormsRepository(source, new Set(), true);
+
+    assert.deepEqual(await repository.getActiveStorms(), [ALPHA, BETA, GAMMA]);
+    assert.equal(source.calls, 1);
+});
+
+test("Testable repository drops hidden storms in test mode", async () => {
+    const source = new CountingActiveStormsRepository();
+    const repository = new TestableActiveStormsRepository(source, new Set(), true);
+
+    repository.hideStorm(ALPHA.stormId);
+
+    assert.deepEqual(await repository.getActiveStorms(), [BETA, GAMMA]);
+    assert.equal(source.calls, 1);
+});
+
+test("Testable repository reports which storms are hidden", () => {
+    const repository = new TestableActiveStormsRepository(new CountingActiveStormsRepository(), new Set(), true);
+
+    repository.hideStorm(BETA.stormId);
+
+    assert.equal(repository.isHidden(ALPHA.stormId), false);
+    assert.equal(repository.isHidden(BETA.stormId), true);
+});
+
+test("Testable repository clears every hidden storm", async () => {
+    const hiddenStormIds = new Set<string>();
+    const repository = new TestableActiveStormsRepository(new CountingActiveStormsRepository(), hiddenStormIds, true);
+
+    repository.hideStorm(ALPHA.stormId);
+    repository.hideStorm(GAMMA.stormId);
+
+    assert.equal(hiddenStormIds.size, 2);
+
+    repository.clearHidden();
+
+    assert.equal(hiddenStormIds.size, 0);
+    assert.deepEqual(await repository.getActiveStorms(), [ALPHA, BETA, GAMMA]);
+});
+
+test("Testable repository records hidden storms but keeps serving them when test mode is off", async () => {
+    const hiddenStormIds = new Set<string>();
+    const repository = new TestableActiveStormsRepository(new CountingActiveStormsRepository(), hiddenStormIds, false);
+
+    // The set still accepts the identifier so flipping test mode on needs no extra state.
+    repository.hideStorm(ALPHA.stormId);
+
+    assert.deepEqual(await repository.getActiveStorms(), [ALPHA, BETA, GAMMA]);
+    assert.equal(repository.isHidden(ALPHA.stormId), true);
+});
+
+const ALPHA = toStorm("nhc:al012024", "ALPHA", "nhc");
+const BETA = toStorm("nhc:al022024", "BETA", "nhc");
+const GAMMA = toStorm("gdacs:TC:123:456", "GAMMA", "gdacs");
+
+function toStorm (stormId: string, name: string, source: StormSummary["source"]): StormSummary {
+    return {
+        stormId,
+        name,
+        source,
+        basin: "atlantic",
+        lat: 20,
+        lon: -60,
+        datetime: "2024-09-01T00:00:00.000Z",
+        windSpeed: 65,
+        category: "category_1",
+        alertLevel: null,
+    };
+}
+
+class CountingActiveStormsRepository implements ActiveStormsRepository {
+    public calls = 0;
+
+    public async getActiveStorms (): Promise<StormSummary[]> {
+        this.calls += 1;
+
+        return [ALPHA, BETA, GAMMA];
+    }
+}
