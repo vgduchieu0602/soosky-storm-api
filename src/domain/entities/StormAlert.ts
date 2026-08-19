@@ -19,7 +19,6 @@ interface StormAlert {
     trackingId: string;
     stormId: string;
     stormName: string;
-    /** Distinguishes one occurrence of an alert from the next, e.g. the new category. */
     signature: string;
     lat: number;
     lon: number;
