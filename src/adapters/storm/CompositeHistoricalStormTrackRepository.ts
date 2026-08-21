@@ -1,5 +1,5 @@
-import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
-import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrack from "../../domain/entities/storm/HistoricalStormTrack.js";
+import HistoricalStormTrackRepository from "../../domain/repositories/storm/IHistoricalStormTrackRepository.js";
 import { GDACS_STORM_ID_PREFIX } from "./CompositeStormRepository.js";
 
 export { CompositeHistoricalStormTrackRepository as default };

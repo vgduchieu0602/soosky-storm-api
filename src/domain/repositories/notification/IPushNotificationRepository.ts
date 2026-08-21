@@ -1,4 +1,4 @@
-import PushNotification from "../entities/PushNotification.js";
+import PushNotification from "../../entities/notification/PushNotification.js";
 
 export { PushNotificationRepository as default };
 

@@ -1,6 +1,6 @@
-import MapTile, { MapTileQuery } from "../../domain/entities/MapTile.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import MapTileRepository from "../../domain/repositories/IMapTileRepository.js";
+import MapTile, { MapTileQuery } from "../../domain/entities/map/MapTile.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import MapTileRepository from "../../domain/repositories/map/IMapTileRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 interface CacheLimits {

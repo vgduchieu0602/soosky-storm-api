@@ -1,6 +1,6 @@
-import StormSpaghetti from "../../domain/entities/StormSpaghetti.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import SpaghettiRepository from "../../domain/repositories/ISpaghettiRepository.js";
+import StormSpaghetti from "../../domain/entities/storm/StormSpaghetti.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import SpaghettiRepository from "../../domain/repositories/storm/ISpaghettiRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 export { CachedSpaghettiRepository as default };

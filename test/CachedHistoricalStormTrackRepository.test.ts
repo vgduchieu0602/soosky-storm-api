@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedHistoricalStormTrackRepository from "../src/adapters/cache/CachedHistoricalStormTrackRepository.js";
-import HistoricalStormTrack from "../src/domain/entities/HistoricalStormTrack.js";
-import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTrack.js";
+import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
 
 test("Historical storm track cache reuses an available result until the two-hour TTL expires", async () => {
     const source = new CountingHistoricalStormTrackRepository();

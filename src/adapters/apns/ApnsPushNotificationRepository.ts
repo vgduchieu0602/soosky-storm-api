@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import PushNotification from "../../domain/entities/PushNotification.js";
+import PushNotification from "../../domain/entities/notification/PushNotification.js";
 import PushNotificationError from "../../domain/errors/PushNotificationError.js";
-import PushNotificationRepository from "../../domain/repositories/IPushNotificationRepository.js";
+import PushNotificationRepository from "../../domain/repositories/notification/IPushNotificationRepository.js";
 import createApnsHttp2Transport, { ApnsTransport } from "./createApnsHttp2Transport.js";
 import signApnsJwt from "./signApnsJwt.js";
 

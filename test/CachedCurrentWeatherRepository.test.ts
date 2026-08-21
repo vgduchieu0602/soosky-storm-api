@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedCurrentWeatherRepository from "../src/adapters/cache/CachedCurrentWeatherRepository.js";
-import { getCacheStatus } from "../src/domain/cacheStatus.js";
-import CurrentWeather from "../src/domain/entities/CurrentWeather.js";
-import CurrentWeatherRepository, { CurrentWeatherQuery } from "../src/domain/repositories/ICurrentWeatherRepository.js";
+import { getCacheStatus } from "../src/domain/services/cacheStatus.js";
+import CurrentWeather from "../src/domain/entities/weather/CurrentWeather.js";
+import CurrentWeatherRepository, { CurrentWeatherQuery } from "../src/domain/repositories/weather/ICurrentWeatherRepository.js";
 
 const TTL_MS = 600_000;
 

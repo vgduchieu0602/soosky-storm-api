@@ -1,4 +1,4 @@
-import { StormAlertType } from "./StormAlert.js";
+import { StormAlertType } from "../alert/StormAlert.js";
 
 export type { PushNotification as default, PushNotificationReceipt };
 

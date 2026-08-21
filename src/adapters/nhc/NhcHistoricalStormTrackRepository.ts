@@ -1,8 +1,8 @@
 import { gunzipSync } from "node:zlib";
-import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
+import HistoricalStormTrack from "../../domain/entities/storm/HistoricalStormTrack.js";
 import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrackRepository from "../../domain/repositories/storm/IHistoricalStormTrackRepository.js";
 import extractKmlFromKmz from "./extractKmlFromKmz.js";
 import parseNhcBestTrackDeck from "./parseNhcBestTrackDeck.js";
 import parseNhcBestTrackKml from "./parseNhcBestTrackKml.js";

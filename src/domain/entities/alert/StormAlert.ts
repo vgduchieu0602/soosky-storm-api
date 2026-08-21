@@ -1,4 +1,4 @@
-import { StormCategory } from "./StormSummary.js";
+import { StormCategory } from "../storm/StormSummary.js";
 
 export { STORM_ALERT_TYPES };
 export type { StormAlert as default, StormAlertType };

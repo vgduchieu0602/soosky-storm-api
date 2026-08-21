@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import TestableActiveStormsRepository from "../src/adapters/storm/TestableActiveStormsRepository.js";
-import StormSummary from "../src/domain/entities/StormSummary.js";
-import ActiveStormsRepository from "../src/domain/repositories/IActiveStormsRepository.js";
+import StormSummary from "../src/domain/entities/storm/StormSummary.js";
+import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
 
 test("Testable repository passes every storm through when test mode is off", async () => {
     const source = new CountingActiveStormsRepository();

@@ -1,5 +1,5 @@
-import StormSubscription from "../../entities/StormSubscription.js";
-import StormSubscriptionRepository from "../../repositories/IStormSubscriptionRepository.js";
+import StormSubscription from "../../entities/subscription/StormSubscription.js";
+import StormSubscriptionRepository from "../../repositories/subscription/IStormSubscriptionRepository.js";
 
 export { UnsubscribeFromStormUseCase as default };
 export type { UnsubscribeFromStormResult };

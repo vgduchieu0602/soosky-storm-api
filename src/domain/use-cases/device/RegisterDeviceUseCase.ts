@@ -1,5 +1,5 @@
-import Device from "../../entities/Device.js";
-import DeviceRepository from "../../repositories/IDeviceRepository.js";
+import Device from "../../entities/device/Device.js";
+import DeviceRepository from "../../repositories/device/IDeviceRepository.js";
 
 export { RegisterDeviceUseCase as default };
 export type { RegisterDeviceResult };

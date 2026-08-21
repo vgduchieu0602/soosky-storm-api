@@ -1,5 +1,5 @@
-import ActiveStormsRepository from "../../domain/repositories/IActiveStormsRepository.js";
-import StormSummary from "../../domain/entities/StormSummary.js";
+import ActiveStormsRepository from "../../domain/repositories/storm/IActiveStormsRepository.js";
+import StormSummary from "../../domain/entities/storm/StormSummary.js";
 
 export { TestableActiveStormsRepository as default };
 

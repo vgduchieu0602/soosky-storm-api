@@ -1,7 +1,7 @@
-import StormCone, { GeoJsonFeatureCollection } from "../../domain/entities/StormCone.js";
+import StormCone, { GeoJsonFeatureCollection } from "../../domain/entities/storm/StormCone.js";
 import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import StormConeRepository from "../../domain/repositories/IStormConeRepository.js";
+import StormConeRepository from "../../domain/repositories/storm/IStormConeRepository.js";
 import parseGdacsStormId from "./parseGdacsStormId.js";
 
 export { GdacsStormConeRepository as default };

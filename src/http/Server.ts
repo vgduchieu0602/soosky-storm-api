@@ -9,30 +9,30 @@ import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.j
 import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
 import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWeatherUseCase.js";
-import { ForecastUnits } from "../domain/entities/ForecastWeather.js";
-import { MAP_LAYERS, MAX_MAP_ZOOM, MapLayer } from "../domain/entities/MapTile.js";
-import { StormSource } from "../domain/entities/StormSummary.js";
+import { ForecastUnits } from "../domain/entities/weather/ForecastWeather.js";
+import { MAP_LAYERS, MAX_MAP_ZOOM, MapLayer } from "../domain/entities/map/MapTile.js";
+import { StormSource } from "../domain/entities/storm/StormSummary.js";
 import GetCurrentWeatherUseCase from "../domain/use-cases/weather/GetCurrentWeatherUseCase.js";
 import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
 import SendPushNotificationUseCase from "../domain/use-cases/notification/SendPushNotificationUseCase.js";
 import PushNotificationError from "../domain/errors/PushNotificationError.js";
-import PushNotification from "../domain/entities/PushNotification.js";
-import { STORM_ALERT_TYPES, StormAlertType } from "../domain/entities/StormAlert.js";
+import PushNotification from "../domain/entities/notification/PushNotification.js";
+import { STORM_ALERT_TYPES, StormAlertType } from "../domain/entities/alert/StormAlert.js";
 import StorageUnavailableError from "../domain/errors/StorageUnavailableError.js";
-import { isDeviceToken } from "../domain/entities/Device.js";
-import { MAX_REGION_RADIUS_KM, MIN_REGION_RADIUS_KM } from "../domain/entities/RegionSubscription.js";
+import { isDeviceToken } from "../domain/entities/device/Device.js";
+import { MAX_REGION_RADIUS_KM, MIN_REGION_RADIUS_KM } from "../domain/entities/subscription/RegionSubscription.js";
 import RegisterDeviceUseCase from "../domain/use-cases/device/RegisterDeviceUseCase.js";
 import SubscribeToStormUseCase from "../domain/use-cases/subscription/SubscribeToStormUseCase.js";
 import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
 import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import DetectStormAlertsUseCase from "../domain/use-cases/alert/DetectStormAlertsUseCase.js";
-import ActiveStormsRepository from "../domain/repositories/IActiveStormsRepository.js";
-import StormStateRepository from "../domain/repositories/IStormStateRepository.js";
+import ActiveStormsRepository from "../domain/repositories/storm/IActiveStormsRepository.js";
+import StormStateRepository from "../domain/repositories/alert/IStormStateRepository.js";
 import TestableActiveStormsRepository from "../adapters/storm/TestableActiveStormsRepository.js";
 import ClientError from "./ClientError.js";
-import { getCacheStatus } from "../domain/cacheStatus.js";
+import { getCacheStatus } from "../domain/services/cacheStatus.js";
 import formatResponseData from "./formatResponseData.js";
 import formatStormTrackResponse from "./formatStormTrackResponse.js";
 import formatStormSummaryResponse from "./formatStormSummaryResponse.js";
@@ -511,7 +511,7 @@ class Server {
 
         // Check if the storm has been observed by the alert detector (has a stored state).
         // The tracking ID is the episode-free identity used by the alert detector.
-        const { toStormTrackingId } = await import("../domain/stormIdentity.js");
+        const { toStormTrackingId } = await import("../domain/services/stormIdentity.js");
         const trackingId = toStormTrackingId(stormId);
         const previousStates = await stormStateRepository.listStates();
         const previousState = previousStates.find((state) => state.trackingId === trackingId);

@@ -1,5 +1,5 @@
-import StormState from "../../domain/entities/StormState.js";
-import StormStateRepository from "../../domain/repositories/IStormStateRepository.js";
+import StormState from "../../domain/entities/alert/StormState.js";
+import StormStateRepository from "../../domain/repositories/alert/IStormStateRepository.js";
 import { StormStateModel } from "./models.js";
 import { StateCollection, isMongoConnected, runMongoOperation } from "./runMongoOperation.js";
 

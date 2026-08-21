@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
+import HistoricalStormTrack from "../../domain/entities/storm/HistoricalStormTrack.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 import { getStormCategoryFromWindSpeed } from "./parseNhcForecastTrackKml.js";
 

@@ -9,18 +9,18 @@ import SendPushNotificationUseCase from "../src/domain/use-cases/notification/Se
 import GetTrackedStormsUseCase from "../src/domain/use-cases/storm/GetTrackedStormsUseCase.js";
 import TestableActiveStormsRepository from "../src/adapters/storm/TestableActiveStormsRepository.js";
 
-import StormSummary from "../src/domain/entities/StormSummary.js";
-import StormState from "../src/domain/entities/StormState.js";
-import HistoricalStormTrack from "../src/domain/entities/HistoricalStormTrack.js";
-import RegionSubscription from "../src/domain/entities/RegionSubscription.js";
+import StormSummary from "../src/domain/entities/storm/StormSummary.js";
+import StormState from "../src/domain/entities/alert/StormState.js";
+import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTrack.js";
+import RegionSubscription from "../src/domain/entities/subscription/RegionSubscription.js";
 
-import ActiveStormsRepository from "../src/domain/repositories/IActiveStormsRepository.js";
-import StormStateRepository from "../src/domain/repositories/IStormStateRepository.js";
-import StormSubscriptionRepository from "../src/domain/repositories/IStormSubscriptionRepository.js";
-import RegionSubscriptionRepository from "../src/domain/repositories/IRegionSubscriptionRepository.js";
-import AlertDeliveryRepository from "../src/domain/repositories/IAlertDeliveryRepository.js";
-import PushNotificationRepository from "../src/domain/repositories/IPushNotificationRepository.js";
-import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoricalStormTrackRepository.js";
+import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
+import StormStateRepository from "../src/domain/repositories/alert/IStormStateRepository.js";
+import StormSubscriptionRepository from "../src/domain/repositories/subscription/IStormSubscriptionRepository.js";
+import RegionSubscriptionRepository from "../src/domain/repositories/subscription/IRegionSubscriptionRepository.js";
+import AlertDeliveryRepository from "../src/domain/repositories/alert/IAlertDeliveryRepository.js";
+import PushNotificationRepository from "../src/domain/repositories/notification/IPushNotificationRepository.js";
+import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
 
 import type { ServerUseCases } from "../src/http/Server.js";
 

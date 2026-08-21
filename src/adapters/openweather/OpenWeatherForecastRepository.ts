@@ -1,6 +1,6 @@
-import ForecastWeather, { ForecastWeatherPoint } from "../../domain/entities/ForecastWeather.js";
+import ForecastWeather, { ForecastWeatherPoint } from "../../domain/entities/weather/ForecastWeather.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
+import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/weather/IForecastWeatherRepository.js";
 import {
     getUnits,
     getWindDirection,

@@ -1,4 +1,4 @@
-import StormSummary from "../entities/StormSummary.js";
+import StormSummary from "../../entities/storm/StormSummary.js";
 
 export { ActiveStormsRepository as default };
 

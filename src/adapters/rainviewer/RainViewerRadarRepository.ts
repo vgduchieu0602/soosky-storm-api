@@ -1,6 +1,6 @@
-import Radar, { RadarFrame } from "../../domain/entities/Radar.js";
+import Radar, { RadarFrame } from "../../domain/entities/radar/Radar.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import RadarRepository from "../../domain/repositories/IRadarRepository.js";
+import RadarRepository from "../../domain/repositories/radar/IRadarRepository.js";
 
 const RAINVIEWER_MANIFEST_URL = "https://api.rainviewer.com/public/weather-maps.json";
 

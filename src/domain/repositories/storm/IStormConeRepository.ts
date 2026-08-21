@@ -1,4 +1,4 @@
-import StormCone from "../entities/StormCone.js";
+import StormCone from "../../entities/storm/StormCone.js";
 
 export { StormConeRepository as default };
 

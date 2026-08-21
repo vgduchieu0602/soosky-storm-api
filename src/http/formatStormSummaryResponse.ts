@@ -1,5 +1,5 @@
-import { CATEGORY_SAFETY_MESSAGES } from "../domain/alertMessages.js";
-import StormSummary from "../domain/entities/StormSummary.js";
+import { CATEGORY_SAFETY_MESSAGES } from "../domain/services/alertMessages.js";
+import StormSummary from "../domain/entities/storm/StormSummary.js";
 import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatStormSummaryResponse as default };

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import OpenWeatherMapTileRepository from "../src/adapters/openweather/OpenWeatherMapTileRepository.js";
 import StormProviderError from "../src/domain/errors/StormProviderError.js";
-import { MapLayer } from "../src/domain/entities/MapTile.js";
+import { MapLayer } from "../src/domain/entities/map/MapTile.js";
 
 test("OpenWeather map tile repository maps public layers to upstream PNG tiles", async () => {
     const requests: URL[] = [];

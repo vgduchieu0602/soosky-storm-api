@@ -1,6 +1,6 @@
-import StormSummary, { StormSource } from "../../entities/StormSummary.js";
-import { getCacheStatus, markCacheStatus } from "../../cacheStatus.js";
-import ActiveStormsRepository from "../../repositories/IActiveStormsRepository.js";
+import StormSummary, { StormSource } from "../../entities/storm/StormSummary.js";
+import { getCacheStatus, markCacheStatus } from "../../services/cacheStatus.js";
+import ActiveStormsRepository from "../../repositories/storm/IActiveStormsRepository.js";
 
 export { GetActiveStormsUseCase as default };
 export type { GetActiveStormsQuery };

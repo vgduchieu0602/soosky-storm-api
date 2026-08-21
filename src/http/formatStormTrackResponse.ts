@@ -1,5 +1,5 @@
-import StormTrack, { StormTrackPoint } from "../domain/entities/StormTrack.js";
-import { CATEGORY_SAFETY_MESSAGES } from "../domain/alertMessages.js";
+import StormTrack, { StormTrackPoint } from "../domain/entities/storm/StormTrack.js";
+import { CATEGORY_SAFETY_MESSAGES } from "../domain/services/alertMessages.js";
 import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatStormTrackResponse as default };

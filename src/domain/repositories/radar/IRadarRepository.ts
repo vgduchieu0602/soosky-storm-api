@@ -1,4 +1,4 @@
-import Radar from "../entities/Radar.js";
+import Radar from "../../entities/radar/Radar.js";
 
 interface RadarRepository {
     getRadar (): Promise<Radar>;

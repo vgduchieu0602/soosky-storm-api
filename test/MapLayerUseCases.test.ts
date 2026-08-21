@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import MapTile, { MapTileQuery } from "../src/domain/entities/MapTile.js";
-import Radar from "../src/domain/entities/Radar.js";
-import MapTileRepository from "../src/domain/repositories/IMapTileRepository.js";
-import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
+import MapTile, { MapTileQuery } from "../src/domain/entities/map/MapTile.js";
+import Radar from "../src/domain/entities/radar/Radar.js";
+import MapTileRepository from "../src/domain/repositories/map/IMapTileRepository.js";
+import RadarRepository from "../src/domain/repositories/radar/IRadarRepository.js";
 import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
 

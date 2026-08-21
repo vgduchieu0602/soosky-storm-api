@@ -1,10 +1,10 @@
-import StormCone from "../../domain/entities/StormCone.js";
-import StormSummary from "../../domain/entities/StormSummary.js";
-import StormTrack from "../../domain/entities/StormTrack.js";
-import ActiveStormsRepository from "../../domain/repositories/IActiveStormsRepository.js";
-import StormConeRepository from "../../domain/repositories/IStormConeRepository.js";
-import StormRepository from "../../domain/repositories/IStormRepository.js";
-import StormTrackRepository from "../../domain/repositories/IStormTrackRepository.js";
+import StormCone from "../../domain/entities/storm/StormCone.js";
+import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import StormTrack from "../../domain/entities/storm/StormTrack.js";
+import ActiveStormsRepository from "../../domain/repositories/storm/IActiveStormsRepository.js";
+import StormConeRepository from "../../domain/repositories/storm/IStormConeRepository.js";
+import StormRepository from "../../domain/repositories/storm/IStormRepository.js";
+import StormTrackRepository from "../../domain/repositories/storm/IStormTrackRepository.js";
 
 export { CompositeStormRepository as default };
 export { GDACS_STORM_ID_PREFIX };

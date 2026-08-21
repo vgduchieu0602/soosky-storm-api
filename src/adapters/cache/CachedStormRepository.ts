@@ -1,8 +1,8 @@
-import StormSummary from "../../domain/entities/StormSummary.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import StormCone from "../../domain/entities/StormCone.js";
-import StormTrack from "../../domain/entities/StormTrack.js";
-import StormRepository from "../../domain/repositories/IStormRepository.js";
+import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import StormCone from "../../domain/entities/storm/StormCone.js";
+import StormTrack from "../../domain/entities/storm/StormTrack.js";
+import StormRepository from "../../domain/repositories/storm/IStormRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 export { CachedStormRepository as default };

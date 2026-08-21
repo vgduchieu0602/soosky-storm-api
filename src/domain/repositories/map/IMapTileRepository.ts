@@ -1,4 +1,4 @@
-import MapTile, { MapTileQuery } from "../entities/MapTile.js";
+import MapTile, { MapTileQuery } from "../../entities/map/MapTile.js";
 
 interface MapTileRepository {
     getTile (query: MapTileQuery): Promise<MapTile>;

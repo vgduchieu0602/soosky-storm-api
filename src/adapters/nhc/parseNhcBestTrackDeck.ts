@@ -1,4 +1,4 @@
-import { HistoricalStormTrackPoint } from "../../domain/entities/HistoricalStormTrack.js";
+import { HistoricalStormTrackPoint } from "../../domain/entities/storm/HistoricalStormTrack.js";
 import { getStormCategoryFromWindSpeed } from "./parseNhcForecastTrackKml.js";
 
 export { parseNhcBestTrackDeck as default };

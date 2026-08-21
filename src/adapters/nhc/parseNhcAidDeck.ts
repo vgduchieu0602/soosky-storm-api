@@ -1,7 +1,7 @@
 import {
     StormSpaghettiModel,
     StormSpaghettiPoint,
-} from "../../domain/entities/StormSpaghetti.js";
+} from "../../domain/entities/storm/StormSpaghetti.js";
 
 export { parseNhcAidDeck as default };
 export type { ParsedNhcAidDeck };

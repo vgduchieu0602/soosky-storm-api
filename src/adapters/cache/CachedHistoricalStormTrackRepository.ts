@@ -1,6 +1,6 @@
-import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrack from "../../domain/entities/storm/HistoricalStormTrack.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import HistoricalStormTrackRepository from "../../domain/repositories/storm/IHistoricalStormTrackRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 export { CachedHistoricalStormTrackRepository as default };

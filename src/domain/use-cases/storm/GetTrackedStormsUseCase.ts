@@ -1,9 +1,9 @@
-import TrackedStorm from "../../entities/TrackedStorm.js";
+import TrackedStorm from "../../entities/storm/TrackedStorm.js";
 import StormNotFoundError from "../../errors/StormNotFoundError.js";
-import { getCacheStatus, markCacheStatus } from "../../cacheStatus.js";
-import ActiveStormsRepository from "../../repositories/IActiveStormsRepository.js";
-import HistoricalStormTrackRepository from "../../repositories/IHistoricalStormTrackRepository.js";
-import { toStormTrackingId } from "../../stormIdentity.js";
+import { getCacheStatus, markCacheStatus } from "../../services/cacheStatus.js";
+import ActiveStormsRepository from "../../repositories/storm/IActiveStormsRepository.js";
+import HistoricalStormTrackRepository from "../../repositories/storm/IHistoricalStormTrackRepository.js";
+import { toStormTrackingId } from "../../services/stormIdentity.js";
 
 export { GetTrackedStormsUseCase as default };
 export type { GetTrackedStormsQuery };

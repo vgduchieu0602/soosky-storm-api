@@ -1,6 +1,6 @@
-import StormTrack from "../../entities/StormTrack.js";
+import StormTrack from "../../entities/storm/StormTrack.js";
 import StormNotFoundError from "../../errors/StormNotFoundError.js";
-import StormRepository from "../../repositories/IStormRepository.js";
+import StormRepository from "../../repositories/storm/IStormRepository.js";
 
 export { GetStormTrackUseCase as default };
 export type { GetStormTrackQuery };

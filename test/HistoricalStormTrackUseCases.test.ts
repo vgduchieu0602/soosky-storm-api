@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import HistoricalStormTrack from "../src/domain/entities/HistoricalStormTrack.js";
-import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTrack.js";
+import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
 import GetHistoricalStormTrackUseCase from "../src/domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 
 test("Historical storm track use case returns the requested track from its repository", async () => {

@@ -1,6 +1,6 @@
-import StormSubscription from "../../domain/entities/StormSubscription.js";
-import StormSubscriptionRepository from "../../domain/repositories/IStormSubscriptionRepository.js";
-import { toStormTrackingId } from "../../domain/stormIdentity.js";
+import StormSubscription from "../../domain/entities/subscription/StormSubscription.js";
+import StormSubscriptionRepository from "../../domain/repositories/subscription/IStormSubscriptionRepository.js";
+import { toStormTrackingId } from "../../domain/services/stormIdentity.js";
 
 export { FixtureStormSubscriptionRepository as default };
 

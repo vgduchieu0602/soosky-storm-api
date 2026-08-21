@@ -1,5 +1,5 @@
-import StormSpaghetti, { StormSpaghettiModel } from "../../domain/entities/StormSpaghetti.js";
-import SpaghettiRepository from "../../domain/repositories/ISpaghettiRepository.js";
+import StormSpaghetti, { StormSpaghettiModel } from "../../domain/entities/storm/StormSpaghetti.js";
+import SpaghettiRepository from "../../domain/repositories/storm/ISpaghettiRepository.js";
 import { FIXTURE_ACTIVE_STORMS } from "./FixtureStormRepository.js";
 
 export { FixtureSpaghettiRepository as default };

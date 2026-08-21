@@ -1,11 +1,11 @@
-import HistoricalStormTrack, { HistoricalStormTrackPoint } from "../../domain/entities/HistoricalStormTrack.js";
-import StormSummary from "../../domain/entities/StormSummary.js";
-import StormTrack, { StormTrackPoint } from "../../domain/entities/StormTrack.js";
+import HistoricalStormTrack, { HistoricalStormTrackPoint } from "../../domain/entities/storm/HistoricalStormTrack.js";
+import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import StormTrack, { StormTrackPoint } from "../../domain/entities/storm/StormTrack.js";
 import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import ActiveStormsRepository from "../../domain/repositories/IActiveStormsRepository.js";
-import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
-import StormTrackRepository from "../../domain/repositories/IStormTrackRepository.js";
+import ActiveStormsRepository from "../../domain/repositories/storm/IActiveStormsRepository.js";
+import HistoricalStormTrackRepository from "../../domain/repositories/storm/IHistoricalStormTrackRepository.js";
+import StormTrackRepository from "../../domain/repositories/storm/IStormTrackRepository.js";
 import { getStormCategoryFromWindSpeed } from "../nhc/parseNhcForecastTrackKml.js";
 import parseGdacsStormId from "./parseGdacsStormId.js";
 import parseGdacsTrackGeometry, { GdacsTrackPoint } from "./parseGdacsTrackGeometry.js";

@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import { StormCategory } from "../../domain/entities/StormSummary.js";
-import { StormTrackPoint } from "../../domain/entities/StormTrack.js";
+import { StormCategory } from "../../domain/entities/storm/StormSummary.js";
+import { StormTrackPoint } from "../../domain/entities/storm/StormTrack.js";
 
 export {
     getStormCategoryFromWindSpeed,

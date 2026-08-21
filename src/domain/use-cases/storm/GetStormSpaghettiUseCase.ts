@@ -1,6 +1,6 @@
-import StormSpaghetti from "../../entities/StormSpaghetti.js";
+import StormSpaghetti from "../../entities/storm/StormSpaghetti.js";
 import StormNotFoundError from "../../errors/StormNotFoundError.js";
-import SpaghettiRepository from "../../repositories/ISpaghettiRepository.js";
+import SpaghettiRepository from "../../repositories/storm/ISpaghettiRepository.js";
 
 export { GetStormSpaghettiUseCase as default };
 export type { GetStormSpaghettiQuery };

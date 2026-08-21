@@ -1,5 +1,5 @@
-import ForecastWeather from "../../entities/ForecastWeather.js";
-import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../repositories/IForecastWeatherRepository.js";
+import ForecastWeather from "../../entities/weather/ForecastWeather.js";
+import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../repositories/weather/IForecastWeatherRepository.js";
 
 class GetForecastWeatherUseCase {
     public constructor (

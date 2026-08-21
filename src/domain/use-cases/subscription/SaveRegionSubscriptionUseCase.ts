@@ -1,5 +1,5 @@
-import RegionSubscription from "../../entities/RegionSubscription.js";
-import RegionSubscriptionRepository from "../../repositories/IRegionSubscriptionRepository.js";
+import RegionSubscription from "../../entities/subscription/RegionSubscription.js";
+import RegionSubscriptionRepository from "../../repositories/subscription/IRegionSubscriptionRepository.js";
 
 export { SaveRegionSubscriptionUseCase as default };
 export type { SaveRegionSubscriptionResult };

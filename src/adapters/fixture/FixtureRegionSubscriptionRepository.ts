@@ -1,5 +1,5 @@
-import RegionSubscription from "../../domain/entities/RegionSubscription.js";
-import RegionSubscriptionRepository from "../../domain/repositories/IRegionSubscriptionRepository.js";
+import RegionSubscription from "../../domain/entities/subscription/RegionSubscription.js";
+import RegionSubscriptionRepository from "../../domain/repositories/subscription/IRegionSubscriptionRepository.js";
 
 export { FixtureRegionSubscriptionRepository as default };
 

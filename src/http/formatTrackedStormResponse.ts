@@ -1,5 +1,5 @@
-import { CATEGORY_SAFETY_MESSAGES } from "../domain/alertMessages.js";
-import TrackedStorm from "../domain/entities/TrackedStorm.js";
+import { CATEGORY_SAFETY_MESSAGES } from "../domain/services/alertMessages.js";
+import TrackedStorm from "../domain/entities/storm/TrackedStorm.js";
 import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatTrackedStormResponse as default };

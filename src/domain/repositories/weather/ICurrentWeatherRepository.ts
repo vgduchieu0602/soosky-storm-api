@@ -1,5 +1,5 @@
-import CurrentWeather from "../entities/CurrentWeather.js";
-import { ForecastUnits } from "../entities/ForecastWeather.js";
+import CurrentWeather from "../../entities/weather/CurrentWeather.js";
+import { ForecastUnits } from "../../entities/weather/ForecastWeather.js";
 
 export { CurrentWeatherRepository as default };
 export type { CurrentWeatherQuery };

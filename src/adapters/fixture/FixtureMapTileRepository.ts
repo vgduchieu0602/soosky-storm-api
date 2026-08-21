@@ -1,6 +1,6 @@
 import { deflateSync } from "node:zlib";
-import MapTile, { MapLayer, MapTileQuery } from "../../domain/entities/MapTile.js";
-import MapTileRepository from "../../domain/repositories/IMapTileRepository.js";
+import MapTile, { MapLayer, MapTileQuery } from "../../domain/entities/map/MapTile.js";
+import MapTileRepository from "../../domain/repositories/map/IMapTileRepository.js";
 
 export { FixtureMapTileRepository as default };
 

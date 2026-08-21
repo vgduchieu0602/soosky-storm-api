@@ -1,4 +1,4 @@
-import { ForecastUnits, ForecastWeatherCondition, WeatherUnits } from "../../domain/entities/ForecastWeather.js";
+import { ForecastUnits, ForecastWeatherCondition, WeatherUnits } from "../../domain/entities/weather/ForecastWeather.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 
 export {

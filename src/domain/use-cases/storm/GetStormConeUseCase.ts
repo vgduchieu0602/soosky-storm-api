@@ -1,6 +1,6 @@
-import StormCone from "../../entities/StormCone.js";
+import StormCone from "../../entities/storm/StormCone.js";
 import StormNotFoundError from "../../errors/StormNotFoundError.js";
-import StormConeRepository from "../../repositories/IStormConeRepository.js";
+import StormConeRepository from "../../repositories/storm/IStormConeRepository.js";
 
 export { GetStormConeUseCase as default };
 export type { GetStormConeQuery };

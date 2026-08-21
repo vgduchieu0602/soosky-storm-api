@@ -1,4 +1,4 @@
-import AlertDeliveryRepository from "../../domain/repositories/IAlertDeliveryRepository.js";
+import AlertDeliveryRepository from "../../domain/repositories/alert/IAlertDeliveryRepository.js";
 import { AlertDeliveryModel } from "./models.js";
 import {
     DeliveryCollection,

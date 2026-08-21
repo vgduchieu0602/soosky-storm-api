@@ -1,7 +1,7 @@
-import DemoStormSummary from "../../entities/DemoStormSummary.js";
-import { getCacheStatus, markCacheStatus } from "../../cacheStatus.js";
+import DemoStormSummary from "../../entities/storm/DemoStormSummary.js";
+import { getCacheStatus, markCacheStatus } from "../../services/cacheStatus.js";
 import StormProviderError from "../../errors/StormProviderError.js";
-import HistoricalStormTrackRepository from "../../repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrackRepository from "../../repositories/storm/IHistoricalStormTrackRepository.js";
 
 export { GetDemoStormsUseCase as default };
 

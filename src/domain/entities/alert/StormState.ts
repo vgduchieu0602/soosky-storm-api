@@ -1,4 +1,4 @@
-import { StormCategory } from "./StormSummary.js";
+import { StormCategory } from "../storm/StormSummary.js";
 
 export type { StormState as default };
 

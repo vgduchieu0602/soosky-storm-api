@@ -1,5 +1,5 @@
-import PushNotification from "../../domain/entities/PushNotification.js";
-import PushNotificationRepository from "../../domain/repositories/IPushNotificationRepository.js";
+import PushNotification from "../../domain/entities/notification/PushNotification.js";
+import PushNotificationRepository from "../../domain/repositories/notification/IPushNotificationRepository.js";
 
 export { FixturePushNotificationRepository as default };
 

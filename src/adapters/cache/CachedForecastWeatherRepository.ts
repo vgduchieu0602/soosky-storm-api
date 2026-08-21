@@ -1,6 +1,6 @@
-import ForecastWeather from "../../domain/entities/ForecastWeather.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
+import ForecastWeather from "../../domain/entities/weather/ForecastWeather.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/weather/IForecastWeatherRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
 interface CacheLimits {

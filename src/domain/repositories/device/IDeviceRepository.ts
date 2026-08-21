@@ -1,4 +1,4 @@
-import Device from "../entities/Device.js";
+import Device from "../../entities/device/Device.js";
 
 export { DeviceRepository as default };
 

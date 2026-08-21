@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedRadarRepository from "../src/adapters/cache/CachedRadarRepository.js";
-import Radar from "../src/domain/entities/Radar.js";
-import RadarRepository from "../src/domain/repositories/IRadarRepository.js";
+import Radar from "../src/domain/entities/radar/Radar.js";
+import RadarRepository from "../src/domain/repositories/radar/IRadarRepository.js";
 
 const TTL_MS = 43_200_000;
 

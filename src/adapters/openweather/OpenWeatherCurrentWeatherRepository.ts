@@ -1,6 +1,6 @@
-import CurrentWeather from "../../domain/entities/CurrentWeather.js";
+import CurrentWeather from "../../domain/entities/weather/CurrentWeather.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../domain/repositories/ICurrentWeatherRepository.js";
+import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../domain/repositories/weather/ICurrentWeatherRepository.js";
 import {
     getUnits,
     getWindDirection,

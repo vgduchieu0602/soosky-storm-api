@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { GeoJsonFeature } from "../../domain/entities/StormCone.js";
+import { GeoJsonFeature } from "../../domain/entities/storm/StormCone.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
 
 export { parseNhcForecastConeKml as default };

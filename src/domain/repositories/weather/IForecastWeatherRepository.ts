@@ -1,4 +1,4 @@
-import ForecastWeather, { ForecastUnits } from "../entities/ForecastWeather.js";
+import ForecastWeather, { ForecastUnits } from "../../entities/weather/ForecastWeather.js";
 
 interface ForecastWeatherQuery {
     lat: number;

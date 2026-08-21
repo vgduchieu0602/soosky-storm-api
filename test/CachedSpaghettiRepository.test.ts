@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedSpaghettiRepository from "../src/adapters/cache/CachedSpaghettiRepository.js";
-import StormSpaghetti from "../src/domain/entities/StormSpaghetti.js";
-import SpaghettiRepository from "../src/domain/repositories/ISpaghettiRepository.js";
+import StormSpaghetti from "../src/domain/entities/storm/StormSpaghetti.js";
+import SpaghettiRepository from "../src/domain/repositories/storm/ISpaghettiRepository.js";
 
 test("Spaghetti cache reuses an available response until the two-hour TTL expires", async () => {
     const source = new CountingSpaghettiRepository();

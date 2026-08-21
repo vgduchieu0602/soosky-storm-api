@@ -1,6 +1,6 @@
-import MapTile, { MapLayer, MapTileQuery } from "../../domain/entities/MapTile.js";
+import MapTile, { MapLayer, MapTileQuery } from "../../domain/entities/map/MapTile.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import MapTileRepository from "../../domain/repositories/IMapTileRepository.js";
+import MapTileRepository from "../../domain/repositories/map/IMapTileRepository.js";
 
 const OPENWEATHER_TILE_URL = "https://tile.openweathermap.org/map";
 const PROVIDER_LAYERS: Record<MapLayer, string> = {

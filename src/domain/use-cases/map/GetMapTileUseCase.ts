@@ -1,5 +1,5 @@
-import MapTile, { MapTileQuery } from "../../entities/MapTile.js";
-import MapTileRepository from "../../repositories/IMapTileRepository.js";
+import MapTile, { MapTileQuery } from "../../entities/map/MapTile.js";
+import MapTileRepository from "../../repositories/map/IMapTileRepository.js";
 
 class GetMapTileUseCase {
     public constructor (

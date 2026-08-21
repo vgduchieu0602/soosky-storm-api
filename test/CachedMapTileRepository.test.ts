@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedMapTileRepository from "../src/adapters/cache/CachedMapTileRepository.js";
-import MapTile, { MapTileQuery } from "../src/domain/entities/MapTile.js";
-import MapTileRepository from "../src/domain/repositories/IMapTileRepository.js";
+import MapTile, { MapTileQuery } from "../src/domain/entities/map/MapTile.js";
+import MapTileRepository from "../src/domain/repositories/map/IMapTileRepository.js";
 
 const TTL_MS = 43_200_000;
 

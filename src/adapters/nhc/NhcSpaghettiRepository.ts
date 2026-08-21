@@ -1,7 +1,7 @@
 import { gunzipSync } from "node:zlib";
-import StormSpaghetti from "../../domain/entities/StormSpaghetti.js";
+import StormSpaghetti from "../../domain/entities/storm/StormSpaghetti.js";
 import StormProviderError from "../../domain/errors/StormProviderError.js";
-import SpaghettiRepository from "../../domain/repositories/ISpaghettiRepository.js";
+import SpaghettiRepository from "../../domain/repositories/storm/ISpaghettiRepository.js";
 import parseNhcAidDeck from "./parseNhcAidDeck.js";
 
 export { NhcSpaghettiRepository as default };

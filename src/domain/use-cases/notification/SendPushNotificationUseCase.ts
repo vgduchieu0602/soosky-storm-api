@@ -1,5 +1,5 @@
-import PushNotification, { PushNotificationReceipt } from "../../entities/PushNotification.js";
-import PushNotificationRepository from "../../repositories/IPushNotificationRepository.js";
+import PushNotification, { PushNotificationReceipt } from "../../entities/notification/PushNotification.js";
+import PushNotificationRepository from "../../repositories/notification/IPushNotificationRepository.js";
 
 export { SendPushNotificationUseCase as default };
 

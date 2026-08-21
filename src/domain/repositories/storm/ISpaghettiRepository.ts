@@ -1,4 +1,4 @@
-import StormSpaghetti from "../entities/StormSpaghetti.js";
+import StormSpaghetti from "../../entities/storm/StormSpaghetti.js";
 
 export { SpaghettiRepository as default };
 

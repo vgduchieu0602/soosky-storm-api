@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import StormSpaghetti from "../src/domain/entities/StormSpaghetti.js";
+import StormSpaghetti from "../src/domain/entities/storm/StormSpaghetti.js";
 import StormNotFoundError from "../src/domain/errors/StormNotFoundError.js";
-import SpaghettiRepository from "../src/domain/repositories/ISpaghettiRepository.js";
+import SpaghettiRepository from "../src/domain/repositories/storm/ISpaghettiRepository.js";
 import GetStormSpaghettiUseCase from "../src/domain/use-cases/storm/GetStormSpaghettiUseCase.js";
 
 test("Spaghetti use case gets the requested storm from its repository", async () => {

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import StormSummary from "../src/domain/entities/StormSummary.js";
-import StormCone from "../src/domain/entities/StormCone.js";
-import StormTrack from "../src/domain/entities/StormTrack.js";
-import StormRepository from "../src/domain/repositories/IStormRepository.js";
+import StormSummary from "../src/domain/entities/storm/StormSummary.js";
+import StormCone from "../src/domain/entities/storm/StormCone.js";
+import StormTrack from "../src/domain/entities/storm/StormTrack.js";
+import StormRepository from "../src/domain/repositories/storm/IStormRepository.js";
 import CachedStormRepository from "../src/adapters/cache/CachedStormRepository.js";
 
 test("Storm Track cache reuses a normalized track until the two-hour TTL expires", async () => {

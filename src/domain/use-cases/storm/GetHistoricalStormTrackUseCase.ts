@@ -1,5 +1,5 @@
-import HistoricalStormTrack from "../../entities/HistoricalStormTrack.js";
-import HistoricalStormTrackRepository from "../../repositories/IHistoricalStormTrackRepository.js";
+import HistoricalStormTrack from "../../entities/storm/HistoricalStormTrack.js";
+import HistoricalStormTrackRepository from "../../repositories/storm/IHistoricalStormTrackRepository.js";
 
 export { GetHistoricalStormTrackUseCase as default };
 export type { GetHistoricalStormTrackQuery };

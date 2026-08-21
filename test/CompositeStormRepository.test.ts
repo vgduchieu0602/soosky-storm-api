@@ -3,16 +3,16 @@ import test from "node:test";
 import CachedStormRepository from "../src/adapters/cache/CachedStormRepository.js";
 import CompositeHistoricalStormTrackRepository from "../src/adapters/storm/CompositeHistoricalStormTrackRepository.js";
 import CompositeStormRepository from "../src/adapters/storm/CompositeStormRepository.js";
-import HistoricalStormTrack from "../src/domain/entities/HistoricalStormTrack.js";
-import StormCone from "../src/domain/entities/StormCone.js";
-import StormSummary from "../src/domain/entities/StormSummary.js";
-import StormTrack from "../src/domain/entities/StormTrack.js";
+import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTrack.js";
+import StormCone from "../src/domain/entities/storm/StormCone.js";
+import StormSummary from "../src/domain/entities/storm/StormSummary.js";
+import StormTrack from "../src/domain/entities/storm/StormTrack.js";
 import StormProviderError from "../src/domain/errors/StormProviderError.js";
-import ActiveStormsRepository from "../src/domain/repositories/IActiveStormsRepository.js";
-import HistoricalStormTrackRepository from "../src/domain/repositories/IHistoricalStormTrackRepository.js";
-import StormConeRepository from "../src/domain/repositories/IStormConeRepository.js";
-import StormRepository from "../src/domain/repositories/IStormRepository.js";
-import StormTrackRepository from "../src/domain/repositories/IStormTrackRepository.js";
+import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
+import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
+import StormConeRepository from "../src/domain/repositories/storm/IStormConeRepository.js";
+import StormRepository from "../src/domain/repositories/storm/IStormRepository.js";
+import StormTrackRepository from "../src/domain/repositories/storm/IStormTrackRepository.js";
 
 test("Composite storm repository sends GDACS cone requests to GDACS only", async () => {
     const nhc = new CountingNhcStormRepository();

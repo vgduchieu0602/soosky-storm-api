@@ -1,4 +1,4 @@
-import HistoricalStormTrack from "../entities/HistoricalStormTrack.js";
+import HistoricalStormTrack from "../../entities/storm/HistoricalStormTrack.js";
 
 export { HistoricalStormTrackRepository as default };
 

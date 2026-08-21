@@ -1,5 +1,5 @@
-import Radar from "../../domain/entities/Radar.js";
-import RadarRepository from "../../domain/repositories/IRadarRepository.js";
+import Radar from "../../domain/entities/radar/Radar.js";
+import RadarRepository from "../../domain/repositories/radar/IRadarRepository.js";
 
 export { FixtureRadarRepository as default };
 

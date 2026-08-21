@@ -1,4 +1,4 @@
-import StormCone from "../src/domain/entities/StormCone.js";
+import StormCone from "../src/domain/entities/storm/StormCone.js";
 
 const gdacsCone: StormCone = {
     stormId: "gdacs:TC:1001298:2",

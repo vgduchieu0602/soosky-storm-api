@@ -1,10 +1,10 @@
-import HistoricalStormTrack from "../../domain/entities/HistoricalStormTrack.js";
-import StormCone from "../../domain/entities/StormCone.js";
-import StormSummary from "../../domain/entities/StormSummary.js";
-import StormTrack from "../../domain/entities/StormTrack.js";
+import HistoricalStormTrack from "../../domain/entities/storm/HistoricalStormTrack.js";
+import StormCone from "../../domain/entities/storm/StormCone.js";
+import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import StormTrack from "../../domain/entities/storm/StormTrack.js";
 import StormNotFoundError from "../../domain/errors/StormNotFoundError.js";
-import HistoricalStormTrackRepository from "../../domain/repositories/IHistoricalStormTrackRepository.js";
-import StormRepository from "../../domain/repositories/IStormRepository.js";
+import HistoricalStormTrackRepository from "../../domain/repositories/storm/IHistoricalStormTrackRepository.js";
+import StormRepository from "../../domain/repositories/storm/IStormRepository.js";
 
 export { FixtureStormRepository as default, ACTIVE_STORMS as FIXTURE_ACTIVE_STORMS };
 

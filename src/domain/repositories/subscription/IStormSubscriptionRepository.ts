@@ -1,4 +1,4 @@
-import StormSubscription from "../entities/StormSubscription.js";
+import StormSubscription from "../../entities/subscription/StormSubscription.js";
 
 export { StormSubscriptionRepository as default };
 

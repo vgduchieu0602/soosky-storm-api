@@ -1,15 +1,15 @@
-import RegionSubscription from "../../entities/RegionSubscription.js";
-import StormAlert from "../../entities/StormAlert.js";
-import StormState from "../../entities/StormState.js";
-import StormSummary from "../../entities/StormSummary.js";
-import { buildStormAlertMessage } from "../../alertMessages.js";
-import { getBearing, getDistanceKm, toCompassDirection } from "../../geo.js";
-import { toStormTrackingId } from "../../stormIdentity.js";
-import ActiveStormsRepository from "../../repositories/IActiveStormsRepository.js";
-import AlertDeliveryRepository from "../../repositories/IAlertDeliveryRepository.js";
-import RegionSubscriptionRepository from "../../repositories/IRegionSubscriptionRepository.js";
-import StormStateRepository from "../../repositories/IStormStateRepository.js";
-import StormSubscriptionRepository from "../../repositories/IStormSubscriptionRepository.js";
+import RegionSubscription from "../../entities/subscription/RegionSubscription.js";
+import StormAlert from "../../entities/alert/StormAlert.js";
+import StormState from "../../entities/alert/StormState.js";
+import StormSummary from "../../entities/storm/StormSummary.js";
+import { buildStormAlertMessage } from "../../services/alertMessages.js";
+import { getBearing, getDistanceKm, toCompassDirection } from "../../services/geo.js";
+import { toStormTrackingId } from "../../services/stormIdentity.js";
+import ActiveStormsRepository from "../../repositories/storm/IActiveStormsRepository.js";
+import AlertDeliveryRepository from "../../repositories/alert/IAlertDeliveryRepository.js";
+import RegionSubscriptionRepository from "../../repositories/subscription/IRegionSubscriptionRepository.js";
+import StormStateRepository from "../../repositories/alert/IStormStateRepository.js";
+import StormSubscriptionRepository from "../../repositories/subscription/IStormSubscriptionRepository.js";
 import SendPushNotificationUseCase from "../notification/SendPushNotificationUseCase.js";
 
 export { DetectStormAlertsUseCase as default };

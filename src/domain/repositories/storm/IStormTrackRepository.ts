@@ -1,4 +1,4 @@
-import StormTrack from "../entities/StormTrack.js";
+import StormTrack from "../../entities/storm/StormTrack.js";
 
 export { StormTrackRepository as default };
 

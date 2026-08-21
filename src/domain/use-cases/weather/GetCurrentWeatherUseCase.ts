@@ -1,5 +1,5 @@
-import CurrentWeather from "../../entities/CurrentWeather.js";
-import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../repositories/ICurrentWeatherRepository.js";
+import CurrentWeather from "../../entities/weather/CurrentWeather.js";
+import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../repositories/weather/ICurrentWeatherRepository.js";
 
 class GetCurrentWeatherUseCase {
     public constructor (

@@ -1,4 +1,4 @@
-import RegionSubscription from "../entities/RegionSubscription.js";
+import RegionSubscription from "../../entities/subscription/RegionSubscription.js";
 
 export { RegionSubscriptionRepository as default };
 

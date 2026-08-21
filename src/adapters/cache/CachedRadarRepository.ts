@@ -1,6 +1,6 @@
-import Radar from "../../domain/entities/Radar.js";
-import { cloneWithCacheStatus, markCacheStatus } from "../../domain/cacheStatus.js";
-import RadarRepository from "../../domain/repositories/IRadarRepository.js";
+import Radar from "../../domain/entities/radar/Radar.js";
+import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
+import RadarRepository from "../../domain/repositories/radar/IRadarRepository.js";
 
 interface CachedRadar {
     expiresAt: number;

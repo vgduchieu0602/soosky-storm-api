@@ -1,5 +1,5 @@
-import StormAlert from "./entities/StormAlert.js";
-import { StormCategory } from "./entities/StormSummary.js";
+import StormAlert from "../entities/alert/StormAlert.js";
+import { StormCategory } from "../entities/storm/StormSummary.js";
 
 export { CATEGORY_SAFETY_MESSAGES, buildStormAlertMessage };
 export type { StormAlertMessage };

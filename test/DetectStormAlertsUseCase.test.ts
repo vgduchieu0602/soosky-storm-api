@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import PushNotification from "../src/domain/entities/PushNotification.js";
-import RegionSubscription from "../src/domain/entities/RegionSubscription.js";
-import StormState from "../src/domain/entities/StormState.js";
-import StormSummary, { StormCategory } from "../src/domain/entities/StormSummary.js";
-import StormSubscription from "../src/domain/entities/StormSubscription.js";
-import ActiveStormsRepository from "../src/domain/repositories/IActiveStormsRepository.js";
-import AlertDeliveryRepository from "../src/domain/repositories/IAlertDeliveryRepository.js";
-import PushNotificationRepository from "../src/domain/repositories/IPushNotificationRepository.js";
-import RegionSubscriptionRepository from "../src/domain/repositories/IRegionSubscriptionRepository.js";
-import StormStateRepository from "../src/domain/repositories/IStormStateRepository.js";
-import StormSubscriptionRepository from "../src/domain/repositories/IStormSubscriptionRepository.js";
+import PushNotification from "../src/domain/entities/notification/PushNotification.js";
+import RegionSubscription from "../src/domain/entities/subscription/RegionSubscription.js";
+import StormState from "../src/domain/entities/alert/StormState.js";
+import StormSummary, { StormCategory } from "../src/domain/entities/storm/StormSummary.js";
+import StormSubscription from "../src/domain/entities/subscription/StormSubscription.js";
+import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
+import AlertDeliveryRepository from "../src/domain/repositories/alert/IAlertDeliveryRepository.js";
+import PushNotificationRepository from "../src/domain/repositories/notification/IPushNotificationRepository.js";
+import RegionSubscriptionRepository from "../src/domain/repositories/subscription/IRegionSubscriptionRepository.js";
+import StormStateRepository from "../src/domain/repositories/alert/IStormStateRepository.js";
+import StormSubscriptionRepository from "../src/domain/repositories/subscription/IStormSubscriptionRepository.js";
 import SendPushNotificationUseCase from "../src/domain/use-cases/notification/SendPushNotificationUseCase.js";
 import DetectStormAlertsUseCase from "../src/domain/use-cases/alert/DetectStormAlertsUseCase.js";
 

@@ -1,5 +1,5 @@
-import Device from "../../domain/entities/Device.js";
-import DeviceRepository from "../../domain/repositories/IDeviceRepository.js";
+import Device from "../../domain/entities/device/Device.js";
+import DeviceRepository from "../../domain/repositories/device/IDeviceRepository.js";
 import { DeviceModel } from "./models.js";
 import {
     UpsertCollection,

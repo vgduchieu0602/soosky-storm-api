@@ -1,13 +1,13 @@
-import CurrentWeather from "../../domain/entities/CurrentWeather.js";
+import CurrentWeather from "../../domain/entities/weather/CurrentWeather.js";
 import ForecastWeather, {
     ForecastUnits,
     ForecastWeatherCondition,
     ForecastWeatherPoint,
     WeatherUnits,
-} from "../../domain/entities/ForecastWeather.js";
-import { getDistanceKm, toCompassDirection } from "../../domain/geo.js";
-import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../domain/repositories/ICurrentWeatherRepository.js";
-import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/IForecastWeatherRepository.js";
+} from "../../domain/entities/weather/ForecastWeather.js";
+import { getDistanceKm, toCompassDirection } from "../../domain/services/geo.js";
+import CurrentWeatherRepository, { CurrentWeatherQuery } from "../../domain/repositories/weather/ICurrentWeatherRepository.js";
+import ForecastWeatherRepository, { ForecastWeatherQuery } from "../../domain/repositories/weather/IForecastWeatherRepository.js";
 import { FIXTURE_ACTIVE_STORMS } from "./FixtureStormRepository.js";
 
 export { FixtureWeatherRepository as default };

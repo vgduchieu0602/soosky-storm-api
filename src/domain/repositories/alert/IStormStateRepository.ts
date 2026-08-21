@@ -1,4 +1,4 @@
-import StormState from "../entities/StormState.js";
+import StormState from "../../entities/alert/StormState.js";
 
 export { StormStateRepository as default };
 

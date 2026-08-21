@@ -1,5 +1,5 @@
-import Radar from "../../entities/Radar.js";
-import RadarRepository from "../../repositories/IRadarRepository.js";
+import Radar from "../../entities/radar/Radar.js";
+import RadarRepository from "../../repositories/radar/IRadarRepository.js";
 
 class GetRadarUseCase {
     public constructor (

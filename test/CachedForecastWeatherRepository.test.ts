@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import CachedForecastWeatherRepository from "../src/adapters/cache/CachedForecastWeatherRepository.js";
-import ForecastWeather from "../src/domain/entities/ForecastWeather.js";
-import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/repositories/IForecastWeatherRepository.js";
+import ForecastWeather from "../src/domain/entities/weather/ForecastWeather.js";
+import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/repositories/weather/IForecastWeatherRepository.js";
 
 test("Forecast Weather cache reuses a location and units for 24 hours", async () => {
     const source = new CountingForecastWeatherRepository();
