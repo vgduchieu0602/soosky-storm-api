@@ -3,6 +3,7 @@ import StorageUnavailableError from "../../domain/errors/StorageUnavailableError
 
 export { isDuplicateKeyError, isMongoConnected, runMongoOperation };
 export type {
+    AlertCollection,
     DeleteOutcome,
     DeliveryCollection,
     StateCollection,
@@ -43,6 +44,19 @@ interface StateCollection extends UpsertCollection {
 
 interface DeliveryCollection extends UpsertCollection {
     deleteMany (filter: Record<string, unknown>): PromiseLike<DeleteOutcome>;
+}
+
+interface AlertCollection {
+    /** Unordered, so one already-recorded alert does not stop the rest of the batch. */
+    insertMany (
+        documents: Record<string, unknown>[],
+        options: { ordered: false },
+    ): PromiseLike<unknown[]>;
+    find (filter: Record<string, unknown>): {
+        sort (spec: Record<string, 1 | -1>): {
+            limit (count: number): { lean (): PromiseLike<Record<string, unknown>[]> };
+        };
+    };
 }
 
 function isMongoConnected (): boolean {

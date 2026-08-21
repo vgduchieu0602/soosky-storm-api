@@ -42,6 +42,9 @@ import RegisterDeviceUseCase from "../src/domain/use-cases/device/RegisterDevice
 import SubscribeToStormUseCase from "../src/domain/use-cases/subscription/SubscribeToStormUseCase.js";
 import UnsubscribeFromStormUseCase from "../src/domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
 import SaveRegionSubscriptionUseCase from "../src/domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
+import GetStormAlertsUseCase from "../src/domain/use-cases/alert/GetStormAlertsUseCase.js";
+import StormAlert from "../src/domain/entities/alert/StormAlert.js";
+import StormAlertRepository from "../src/domain/repositories/alert/IStormAlertRepository.js";
 import GetForecastWeatherUseCase from "../src/domain/use-cases/weather/GetForecastWeatherUseCase.js";
 import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
 import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
@@ -62,8 +65,27 @@ let pushNotificationRepository: TestPushNotificationRepository;
 let deviceRepository: MemoryDeviceRepository;
 let stormSubscriptionRepository: MemoryStormSubscriptionRepository;
 let regionSubscriptionRepository: MemoryRegionSubscriptionRepository;
+let stormAlertRepository: MemoryStormAlertRepository;
 let databaseStatus: string;
 let baseUrl: string;
+
+const STORED_ALERT: StormAlert = {
+    id: "nhc:EP072026|category_change|category_2|2026-07-31T21:00:00.000Z",
+    type: "category_change",
+    trackingId: "nhc:EP072026",
+    stormId: "nhc:EP072026",
+    stormName: "Genevieve",
+    previousValue: "category_1",
+    currentValue: "category_2",
+    lat: 22.3,
+    lon: -130.2,
+    windSpeed: 90,
+    category: "category_2",
+    title: "Genevieve strengthened",
+    description: "Genevieve strengthened from Category 1 to Category 2.",
+    observedAt: "2026-07-31T21:00:00.000Z",
+    createdAt: "2026-07-31T21:05:00.000Z",
+};
 
 class TestStormRepository implements StormRepository {
     public trackError: Error | null = null;
@@ -323,6 +345,32 @@ class TestForecastWeatherRepository implements ForecastWeatherRepository {
     }
 }
 
+class MemoryStormAlertRepository implements StormAlertRepository {
+    public constructor (private readonly _alerts: StormAlert[] = []) {}
+
+    public async saveAlerts (alerts: StormAlert[]): Promise<number> {
+        this._alerts.push(...alerts);
+
+        return alerts.length;
+    }
+
+    public async listAlertsByTrackingIds (trackingIds: string[], limit: number): Promise<StormAlert[]> {
+        return this._alerts
+            .filter((alert) => trackingIds.includes(alert.trackingId))
+            .slice(0, limit);
+    }
+}
+
+class UnavailableStormAlertRepository implements StormAlertRepository {
+    public async saveAlerts (): Promise<number> {
+        throw new StorageUnavailableError();
+    }
+
+    public async listAlertsByTrackingIds (): Promise<StormAlert[]> {
+        throw new StorageUnavailableError();
+    }
+}
+
 class MemoryDeviceRepository implements DeviceRepository {
     public error: Error | null = null;
     public readonly tokens = new Set<string>();
@@ -522,6 +570,7 @@ before(async () => {
     deviceRepository = new MemoryDeviceRepository();
     stormSubscriptionRepository = new MemoryStormSubscriptionRepository();
     regionSubscriptionRepository = new MemoryRegionSubscriptionRepository();
+    stormAlertRepository = new MemoryStormAlertRepository([STORED_ALERT]);
     server = new Server({
         http: {
             host: "127.0.0.1",
@@ -539,6 +588,7 @@ before(async () => {
         deviceRepository,
         stormSubscriptionRepository,
         regionSubscriptionRepository,
+        stormAlertRepository,
     ), () => databaseStatus);
 
     const listener = await server.listen();
@@ -1655,6 +1705,95 @@ test("GET /v1/notifications/send is not a route", async () => {
     assert.equal((await response.json()).code, "NOT_FOUND");
 });
 
+test("POST /v1/alerts/query returns the alerts of the tracked storms", async () => {
+    const response = await postJson("/v1/alerts/query", { stormIds: ["nhc:EP072026"] });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+        ok: true,
+        data: [STORED_ALERT],
+        cacheStatus: "bypass",
+    });
+});
+
+test("POST /v1/alerts/query returns an empty list for a storm with no alerts", async () => {
+    const response = await postJson("/v1/alerts/query", { stormIds: ["nhc:AL092026"] });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).data, []);
+});
+
+test("POST /v1/alerts/query needs nothing that identifies a device", async () => {
+    const response = await postJson("/v1/alerts/query", { stormIds: ["nhc:EP072026"] });
+    const body = JSON.stringify(await response.json());
+
+    assert.equal(response.status, 200);
+    assert.equal(/deviceToken|installationId|userId/.test(body), false);
+});
+
+test("POST /v1/alerts/query rejects an invalid request", async (context) => {
+    const invalidBodies: [string, unknown][] = [
+        ["missing stormIds", {}],
+        ["empty stormIds", { stormIds: [] }],
+        ["malformed storm id", { stormIds: ["nhc:XX1"] }],
+        ["too many storm ids", { stormIds: Array.from({ length: 21 }, () => "nhc:EP072026") }],
+        ["limit below one", { stormIds: ["nhc:EP072026"], limit: 0 }],
+        ["limit above the cap", { stormIds: ["nhc:EP072026"], limit: 201 }],
+        ["fractional limit", { stormIds: ["nhc:EP072026"], limit: 1.5 }],
+        ["array body", []],
+    ];
+
+    for (const [name, body] of invalidBodies) {
+        await context.test(name, async () => {
+            const response = await postJson("/v1/alerts/query", body);
+
+            assert.equal(response.status, 400);
+            assert.equal((await response.json()).code, "BAD_REQUEST");
+        });
+    }
+});
+
+test("POST /v1/alerts/query reports a database outage as 503", async () => {
+    const outageServer = new Server({
+        http: { host: "127.0.0.1", port: 0 },
+    }, rateLimiter, createUseCases(
+        stormRepository,
+        spaghettiRepository,
+        forecastWeatherRepository,
+        mapTileRepository,
+        radarRepository,
+        historicalStormTrackRepository,
+        currentWeatherRepository,
+        pushNotificationRepository,
+        deviceRepository,
+        stormSubscriptionRepository,
+        regionSubscriptionRepository,
+        new UnavailableStormAlertRepository(),
+    ), () => databaseStatus);
+    const listener = await outageServer.listen();
+    const address = listener.address() as AddressInfo;
+
+    try {
+        const response = await fetch("http://127.0.0.1:" + address.port + "/v1/alerts/query", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stormIds: ["nhc:EP072026"] }),
+        });
+
+        assert.equal(response.status, 503);
+        assert.equal((await response.json()).code, "STORAGE_UNAVAILABLE");
+    } finally {
+        await outageServer.close();
+    }
+});
+
+test("GET /v1/alerts/query is not a route", async () => {
+    const response = await fetch(baseUrl + "/v1/alerts/query");
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).code, "NOT_FOUND");
+});
+
 function postJson (path: string, body: unknown, method = "POST"): Promise<globalThis.Response> {
     return fetch(baseUrl + path, {
         method,
@@ -1983,6 +2122,7 @@ function createUseCases (
     device: DeviceRepository = new MemoryDeviceRepository(),
     stormSubscription: StormSubscriptionRepository = new MemoryStormSubscriptionRepository(),
     regionSubscription: RegionSubscriptionRepository = new MemoryRegionSubscriptionRepository(),
+    stormAlert: StormAlertRepository = new MemoryStormAlertRepository(),
 ) {
     return {
         storm: {
@@ -2014,6 +2154,9 @@ function createUseCases (
             subscribeToStorm: new SubscribeToStormUseCase(stormSubscription),
             unsubscribeFromStorm: new UnsubscribeFromStormUseCase(stormSubscription),
             saveRegionSubscription: new SaveRegionSubscriptionUseCase(regionSubscription),
+        },
+        alert: {
+            getStormAlerts: new GetStormAlertsUseCase(stormAlert),
         },
     };
 }

@@ -1,3 +1,4 @@
+import DeliverStormAlertPushUseCase from "../../domain/use-cases/alert/DeliverStormAlertPushUseCase.js";
 import DetectStormAlertsUseCase from "../../domain/use-cases/alert/DetectStormAlertsUseCase.js";
 
 export { startAlertScheduler as default };
@@ -5,6 +6,11 @@ export type { AlertScheduler, AlertSchedulerOptions };
 
 interface AlertSchedulerOptions {
     intervalMs: number;
+    /**
+     * Pushes the alerts a cycle recorded. Optional: without it alerts are still
+     * detected and stored, and the in-app alerts screen keeps working.
+     */
+    deliverStormAlertPush?: DeliverStormAlertPushUseCase | null;
     /** Cycles are skipped while this returns false, e.g. with the database down. */
     isReady?: () => boolean;
     log?: (message: string) => void;
@@ -25,6 +31,7 @@ function startAlertScheduler (
     detectStormAlerts: DetectStormAlertsUseCase,
     options: AlertSchedulerOptions,
 ): AlertScheduler {
+    const deliverStormAlertPush = options.deliverStormAlertPush ?? null;
     const isReady = options.isReady ?? (() => true);
     const log = options.log ?? ((message: string) => console.log(message));
     const logError = options.logError ?? ((message: string) => console.error(message));
@@ -44,12 +51,19 @@ function startAlertScheduler (
 
         try {
             const result = await detectStormAlerts.execute();
+            // Detection has already stored the alerts. A push failure past this point
+            // costs a notification, never the alert itself.
+            const delivery = deliverStormAlertPush
+                ? await deliverStormAlertPush.execute(result.alerts)
+                : null;
 
             if (result.alerts.length) {
                 log(
                     "Storm alert cycle: " + result.stormsSeen + " storms, "
-                    + result.alerts.length + " alerts, " + result.sent + " sent, "
-                    + result.skippedAsDuplicate + " duplicates, " + result.failed + " failed.",
+                    + result.alerts.length + " alerts, " + result.saved + " saved, "
+                    + result.skippedAsDuplicate + " already recorded"
+                    + (delivery ? ", " + delivery.sent + " pushed, " + delivery.failed + " failed" : "")
+                    + ".",
                 );
             }
         } catch (error) {

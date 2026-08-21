@@ -41,6 +41,8 @@ function toStormState (document: Record<string, unknown>): StormState {
         alertLevel: typeof document.alertLevel === "string" ? document.alertLevel : null,
         watchWarning: typeof document.watchWarning === "string" ? document.watchWarning : null,
         bearing: typeof document.bearing === "number" ? document.bearing : null,
+        // Rows written before this field existed have none; the next cycle fills it in.
+        datetime: typeof document.datetime === "string" ? document.datetime : null,
     };
 }
 

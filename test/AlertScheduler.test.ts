@@ -164,7 +164,7 @@ class FakeDetector {
                     await this._gate;
                 }
 
-                return { stormsSeen: 0, alerts: [], sent: 0, skippedAsDuplicate: 0, failed: 0 };
+                return { stormsSeen: 0, alerts: [], saved: 0, skippedAsDuplicate: 0 };
             },
         } as unknown as DetectStormAlertsUseCase;
     }

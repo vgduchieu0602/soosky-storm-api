@@ -28,6 +28,7 @@ import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/Unsubs
 import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
 import DetectStormAlertsUseCase from "../domain/use-cases/alert/DetectStormAlertsUseCase.js";
+import GetStormAlertsUseCase, { MAX_ALERT_LIMIT } from "../domain/use-cases/alert/GetStormAlertsUseCase.js";
 import ActiveStormsRepository from "../domain/repositories/storm/IActiveStormsRepository.js";
 import StormStateRepository from "../domain/repositories/alert/IStormStateRepository.js";
 import TestableActiveStormsRepository from "../adapters/storm/TestableActiveStormsRepository.js";
@@ -88,6 +89,9 @@ interface ServerUseCases {
         unsubscribeFromStorm: UnsubscribeFromStormUseCase;
         saveRegionSubscription: SaveRegionSubscriptionUseCase;
     };
+    alert: {
+        getStormAlerts: GetStormAlertsUseCase;
+    };
     // Test mode: only present when STORM_ALERT_TEST_MODE=true
     test?: {
         detectStormAlerts: DetectStormAlertsUseCase;
@@ -142,6 +146,7 @@ class Server {
         ["get", "/v1/storms/:stormId/cone", this._GET_stormCone],
         ["get", "/v1/storms/:stormId/spaghetti", this._GET_stormSpaghetti],
         ["get", "/v1/storms/:stormId/history-track", this._GET_historicalStormTrack],
+        ["post", "/v1/alerts/query", this._POST_queryAlerts],
         ["post", "/v1/notifications/send", this._POST_sendNotification],
         ["post", "/v1/devices", this._POST_registerDevice],
         ["post", "/v1/storm-subscriptions", this._POST_subscribeToStorm],
@@ -337,6 +342,16 @@ class Server {
     private async _GET_currentWeather (request: Request, response: Response): Promise<void> {
         const { lat, lon, units } = parseWeatherQuery(request);
         const data = await this._useCases.weather.getCurrentWeather.execute({ lat, lon, units });
+
+        this._sendData(response, data);
+    }
+
+    private async _POST_queryAlerts (request: Request, response: Response): Promise<void> {
+        const body = readJsonObject(request);
+        const data = await this._useCases.alert.getStormAlerts.execute({
+            stormIds: readStormIds(body),
+            limit: readOptionalLimit(body),
+        });
 
         this._sendData(response, data);
     }
@@ -554,9 +569,8 @@ class Server {
             stormId,
             simulatedStatus: "dissipated",
             alerts: result.alerts.length,
-            sent: result.sent,
+            saved: result.saved,
             skippedAsDuplicate: result.skippedAsDuplicate,
-            failed: result.failed,
         });
     }
 
@@ -669,6 +683,20 @@ function readStormIds (body: Record<string, unknown>): string[] {
     }
 
     return stormIds;
+}
+
+function readOptionalLimit (body: Record<string, unknown>): number | undefined {
+    const limit = body.limit;
+
+    if (limit === undefined || limit === null) {
+        return undefined;
+    }
+
+    if (!Number.isSafeInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_ALERT_LIMIT) {
+        throw new ClientError("Field 'limit' must be an integer between 1 and " + MAX_ALERT_LIMIT + ".");
+    }
+
+    return limit as number;
 }
 
 function readCoordinateField (body: Record<string, unknown>, name: string, min: number, max: number): number {

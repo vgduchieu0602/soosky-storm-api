@@ -1,21 +1,37 @@
-import StormAlert from "../entities/alert/StormAlert.js";
+import { StormAlertType } from "../entities/alert/StormAlert.js";
 import { StormCategory } from "../entities/storm/StormSummary.js";
 
 export { CATEGORY_SAFETY_MESSAGES, buildStormAlertMessage };
-export type { StormAlertMessage };
+export type { StormAlertContent, StormAlertMessage };
 
 interface StormAlertMessage {
     title: string;
     description: string;
 }
 
+/**
+ * What the wording needs, and no more. A full StormAlert satisfies it, so the push
+ * step can re-render the same alert with a device's distance filled in.
+ */
+interface StormAlertContent {
+    type: StormAlertType;
+    stormName: string;
+    previousValue: string | null;
+    currentValue: string | null;
+    windSpeed: number | null;
+    category: StormCategory | null;
+}
+
+/** A change reads as "from X to Y", so the labels stay short. */
 const CATEGORY_LABELS: Readonly<Record<string, string>> = {
-    category_1: "a Category 1 hurricane",
-    category_2: "a Category 2 hurricane",
-    category_3: "a Category 3 hurricane",
-    category_4: "a Category 4 hurricane",
-    category_5: "a Category 5 hurricane",
+    category_1: "Category 1",
+    category_2: "Category 2",
+    category_3: "Category 3",
+    category_4: "Category 4",
+    category_5: "Category 5",
 };
+
+const BELOW_CATEGORY_LABEL = "tropical storm strength";
 
 /**
  * Deterministic safety text appended to Category 1-5 alerts. Plain templates, no
@@ -31,19 +47,26 @@ const CATEGORY_SAFETY_MESSAGES: Readonly<Partial<Record<StormCategory, string>>>
 
 const KNOTS_TO_KM_PER_HOUR = 1.852;
 
-function buildStormAlertMessage (alert: StormAlert, distanceKm: number | null): StormAlertMessage {
+/**
+ * `distanceKm` is null for the stored alert, which belongs to the storm rather than
+ * to any device. Only a push delivery, which knows whose device it is addressing,
+ * passes a distance.
+ */
+function buildStormAlertMessage (alert: StormAlertContent, distanceKm: number | null): StormAlertMessage {
     switch (alert.type) {
         case "new_storm":
             return {
                 title: "New storm: " + alert.stormName,
                 description: withSafety(alert, joinSentences([
-                    alert.stormName + " formed" + describeDistance(distanceKm) + describeMovement(alert.direction) + ".",
+                    alert.stormName + " formed" + describeDistance(distanceKm)
+                    + describeMovement(alert.currentValue) + ".",
                 ])),
             };
         case "category_change":
             return {
-                title: alert.stormName + " is now " + describeCategory(alert.category),
+                title: alert.stormName + " " + describeCategoryTrend(alert),
                 description: withSafety(alert, joinSentences([
+                    describeCategoryChange(alert) + ".",
                     describeWinds(alert.windSpeed) + describeDistance(distanceKm) + ".",
                 ])),
             };
@@ -51,41 +74,76 @@ function buildStormAlertMessage (alert: StormAlert, distanceKm: number | null): 
             return {
                 title: alert.stormName + " changed course",
                 description: joinSentences([
-                    "New heading: " + (alert.direction ?? "unknown") + describeDistance(distanceKm) + ".",
+                    "New heading: " + (alert.currentValue ?? "unknown")
+                    + describePreviousHeading(alert.previousValue) + describeDistance(distanceKm) + ".",
                 ]),
             };
         case "alert_level_change":
             return {
-                title: alert.stormName + " alert level: " + (alert.alertLevel ?? "updated"),
+                title: alert.stormName + " alert level: " + (alert.currentValue ?? "updated"),
                 description: joinSentences([
-                    "The alert level for " + alert.stormName + " is now "
-                    + (alert.alertLevel ?? "updated") + describeDistance(distanceKm) + ".",
+                    "The alert level for " + alert.stormName + " " + describeLevelChange(alert)
+                    + describeDistance(distanceKm) + ".",
                 ]),
             };
         case "watch_warning":
             return {
                 title: alert.stormName + " watch/warning updated",
                 description: joinSentences([
-                    (alert.watchWarning ?? "A watch or warning") + " applies to " + alert.stormName
+                    (alert.currentValue ?? "A watch or warning") + " applies to " + alert.stormName
                     + describeDistance(distanceKm) + ".",
                 ]),
             };
         default:
             return {
                 title: alert.stormName + " has dissipated",
-                description: "No longer an active threat to your area.",
+                description: alert.stormName + " is no longer an active storm.",
             };
     }
 }
 
-function withSafety (alert: StormAlert, description: string): string {
+function withSafety (alert: StormAlertContent, description: string): string {
     const safety = alert.category === null ? null : CATEGORY_SAFETY_MESSAGES[alert.category];
 
     return safety ? description + " " + safety : description;
 }
 
-function describeCategory (category: StormCategory | null): string {
-    return category === null ? "a tropical cyclone" : CATEGORY_LABELS[category] ?? "a tropical cyclone";
+/** Weakening is as newsworthy as strengthening, so both directions get their own word. */
+function describeCategoryTrend (alert: StormAlertContent): string {
+    return toCategoryRank(alert.currentValue) >= toCategoryRank(alert.previousValue)
+        ? "strengthened"
+        : "weakened";
+}
+
+function describeCategoryChange (alert: StormAlertContent): string {
+    return alert.stormName + " " + describeCategoryTrend(alert)
+        + " from " + describeCategoryShort(alert.previousValue)
+        + " to " + describeCategoryShort(alert.currentValue);
+}
+
+function describeCategoryShort (value: string | null): string {
+    return value === null ? BELOW_CATEGORY_LABEL : CATEGORY_LABELS[value] ?? BELOW_CATEGORY_LABEL;
+}
+
+/** Null means the storm is below the hurricane scale, which ranks under Category 1. */
+function toCategoryRank (value: string | null): number {
+    if (value === null || !(value in CATEGORY_LABELS)) {
+        return 0;
+    }
+
+    return Number(value.slice("category_".length));
+}
+
+function describeLevelChange (alert: StormAlertContent): string {
+    const level = alert.currentValue ?? "updated";
+
+    return alert.previousValue === null
+        ? "is now " + level
+        : "changed from " + alert.previousValue + " to " + level;
+}
+
+function describePreviousHeading (previous: string | null): string {
+    return previous === null ? "" : " (was " + previous + ")";
 }
 
 /** Wind speeds are stored in knots and shown in km/h, matching the message examples. */

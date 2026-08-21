@@ -51,9 +51,9 @@ Load `.env` qua `dotenv`, parse & validate các env var, cung cấp object `conf
 |--------------|---------|
 | `entities/` | Các kiểu dữ liệu nghiệp vụ: `StormSummary`, `TrackedStorm`, `StormTrack`, `StormCone`, `StormSpaghetti`, `HistoricalStormTrack`, `CurrentWeather`, `ForecastWeather`, `MapTile`, `Radar`, `Device`, `StormSubscription`, `RegionSubscription`, `StormState`, `StormAlert`, `PushNotification`, `DemoStormSummary`. |
 | `errors/` | Lỗi nghiệp vụ: `StormNotFoundError`, `StormProviderError` (lỗi upstream), `StorageUnavailableError` (Mongo lỗi), `PushNotificationError`. |
-| `repositories/` | **Các interface (ports)**: `IStormRepository`, `IActiveStormsRepository`, `IStormStateRepository`, `IStormConeRepository`, `ISpaghettiRepository`, `IHistoricalStormTrackRepository`, `ICurrentWeatherRepository`, `IForecastWeatherRepository`, `IMapTileRepository`, `IRadarRepository`, `IDeviceRepository`, `IStormSubscriptionRepository`, `IRegionSubscriptionRepository`, `IAlertDeliveryRepository`, `IPushNotificationRepository`. Adapters implement các interface này. |
-| `use-cases/` | Từng nghiệp vụ một, gọi qua ports (không biết adapter nào đằng sau):<br>• `storm/` — `GetActiveStormsUseCase`, `GetTrackedStormsUseCase`, `GetDemoStormsUseCase`, `GetStormTrackUseCase`, `GetStormConeUseCase`, `GetStormSpaghettiUseCase`, `GetHistoricalStormTrackUseCase`<br>• `weather/` — `GetCurrentWeatherUseCase`, `GetForecastWeatherUseCase`<br>• `map/` — `GetMapTileUseCase`<br>• `radar/` — `GetRadarUseCase`<br>• `notification/` — `SendPushNotificationUseCase`<br>• `device/` — `RegisterDeviceUseCase`<br>• `subscription/` — `SubscribeToStormUseCase`, `UnsubscribeFromStormUseCase`, `SaveRegionSubscriptionUseCase`<br>• `alert/` — `DetectStormAlertsUseCase` (phát hiện bão mới / bão tan → tạo alert + gửi push) |
-| `alertMessages.ts` | Template nội dung thông báo push (tiêu đề/mô tả theo loại alert). |
+| `repositories/` | **Các interface (ports)**: `IStormRepository`, `IActiveStormsRepository`, `IStormStateRepository`, `IStormConeRepository`, `ISpaghettiRepository`, `IHistoricalStormTrackRepository`, `ICurrentWeatherRepository`, `IForecastWeatherRepository`, `IMapTileRepository`, `IRadarRepository`, `IDeviceRepository`, `IStormSubscriptionRepository`, `IRegionSubscriptionRepository`, `IStormAlertRepository`, `IAlertDeliveryRepository`, `IPushNotificationRepository`. Adapters implement các interface này. |
+| `use-cases/` | Từng nghiệp vụ một, gọi qua ports (không biết adapter nào đằng sau):<br>• `storm/` — `GetActiveStormsUseCase`, `GetTrackedStormsUseCase`, `GetDemoStormsUseCase`, `GetStormTrackUseCase`, `GetStormConeUseCase`, `GetStormSpaghettiUseCase`, `GetHistoricalStormTrackUseCase`<br>• `weather/` — `GetCurrentWeatherUseCase`, `GetForecastWeatherUseCase`<br>• `map/` — `GetMapTileUseCase`<br>• `radar/` — `GetRadarUseCase`<br>• `notification/` — `SendPushNotificationUseCase`<br>• `device/` — `RegisterDeviceUseCase`<br>• `subscription/` — `SubscribeToStormUseCase`, `UnsubscribeFromStormUseCase`, `SaveRegionSubscriptionUseCase`<br>• `alert/` — `DetectStormAlertsUseCase` (so trạng thái bão với lần quét trước, tạo và lưu alert), `GetStormAlertsUseCase` (đọc alert theo danh sách storm FE đang theo dõi), `DeliverStormAlertPushUseCase` (đẩy push cho alert đã lưu — bước tách rời, hỏng không làm mất alert) |
+| `alertMessages.ts` | Template nội dung alert (tiêu đề/mô tả theo loại alert và giá trị trước/sau). |
 | `cacheStatus.ts` | Hằng/helper trạng thái cache (`fresh`/`stale`/`upstream`) trả về trong response. |
 | `geo.ts` | Hàm tiện ích hình học (khoảng cách, kiểm tra điểm trong vùng). |
 | `stormIdentity.ts` | Chuẩn hóa & parse `stormId` (vd `nhc:AL012026`, `gdacs:TC:...`). |
@@ -81,8 +81,8 @@ Mỗi thư mục con = một nguồn/dịch vụ cụ thể.
 
 **`adapters/mongo/`** — Lưu trữ MongoDB (Mongoose)
 - `connectMongo.ts`: kết nối Mongo (chạy nền, không block khởi động).
-- `models.ts`: schema Mongoose (devices, subscriptions, storm_states, alert_deliveries…).
-- `MongoDeviceRepository`, `MongoStormSubscriptionRepository`, `MongoRegionSubscriptionRepository`, `MongoStormStateRepository`, `MongoAlertDeliveryRepository`: triển khai ports lưu Mongo.
+- `models.ts`: schema Mongoose (devices, subscriptions, storm_states, storm_alerts, alert_deliveries…).
+- `MongoDeviceRepository`, `MongoStormSubscriptionRepository`, `MongoRegionSubscriptionRepository`, `MongoStormStateRepository`, `MongoStormAlertRepository`, `MongoAlertDeliveryRepository`: triển khai ports lưu Mongo.
 - `runMongoOperation.ts`: helper chạy thao tác Mongo an toàn, trả `StorageUnavailableError` nếu chưa connect.
 
 **`adapters/nhc/`** — Nguồn bão NHC (Mỹ, NOAA)
@@ -100,7 +100,7 @@ Mỗi thư mục con = một nguồn/dịch vụ cụ thể.
 - `RainViewerRadarRepository.ts`: lấy ảnh/lớp radar.
 
 **`adapters/scheduler/`** — Bộ lập lịch nền
-- `startAlertScheduler.ts`: vòng lặp gọi `DetectStormAlertsUseCase` mỗi `ALERTS_POLL_INTERVAL_MS`.
+- `startAlertScheduler.ts`: vòng lặp gọi `DetectStormAlertsUseCase` rồi `DeliverStormAlertPushUseCase` mỗi `ALERTS_POLL_INTERVAL_MS`.
 
 **`adapters/storm/`** — Composite & test wrapper
 - `CompositeStormRepository.ts`: gộp NHC + GDACS thành 1 nguồn bão duy nhất.

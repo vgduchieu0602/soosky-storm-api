@@ -584,7 +584,7 @@ Mỗi device có **một** vùng — gọi lại là **ghi đè**.
 
 ### Loại alert tự động
 
-Scheduler gửi push cho device theo dõi bão hoặc nằm trong vùng đã đăng ký. `type` nội bộ của alert dùng các giá trị ổn định sau:
+Scheduler phát hiện thay đổi của bão, **lưu alert vào `storm_alerts`**, rồi mới gửi push cho device theo dõi bão hoặc nằm trong vùng đã đăng ký. Hai bước độc lập: alert vẫn được lưu và đọc được qua `POST /v1/alerts/query` (mục 12) kể cả khi không có device nào, hoặc push thất bại. `type` nội bộ của alert dùng các giá trị ổn định sau:
 
 | `type` | Nhãn hiển thị | Điều kiện |
 | --- | --- | --- |
@@ -613,16 +613,93 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 
 ---
 
-## 12. Nguồn dữ liệu & data test cho từng API
+## 12. `POST /v1/alerts/query`
 
-### 12.1 Bảng tổng hợp
+Lịch sử alert của các cơn bão FE đang theo dõi. **Không cần quyền notification, không cần `deviceToken`, không có định danh người dùng** — FE tự giữ danh sách storm đang tracking và gửi lên.
+
+Thiết kế đầy đủ: xem `ALERT.md`.
+
+**Input (body JSON):**
+
+| Field | Bắt buộc | Ràng buộc |
+| --- | --- | --- |
+| `stormIds` | **Có** | mảng **1–20** phần tử, mỗi phần tử là `nhc:XX######` hoặc `gdacs:TC:<eventId>:<episodeId>` |
+| `limit` | Không | số nguyên **1–200**, mặc định **50** |
+
+Backend tự cắt hậu tố episode của GDACS trước khi tra cứu, nên gửi `gdacs:TC:123456:1` hay `gdacs:TC:123456:3` đều ra alert của cùng cơn bão đó.
+
+**Output 200:** mảng alert, **mới nhất trước** (`createdAt` giảm dần), gộp chung mọi storm trong một danh sách phẳng.
+
+| Field | Kiểu | Ghi chú |
+| --- | --- | --- |
+| `id` | string | Khoá **đục** — dùng làm `key` khi render, đừng parse. Định dạng có thể đổi. |
+| `stormId` | string | ID provider tại thời điểm alert (GDACS có episode) |
+| `trackingId` | string | ID đã bỏ episode — cái backend nhóm alert theo |
+| `stormName` | string | |
+| `type` | string | Một trong 6 giá trị ở bảng mục 11 |
+| `previousValue` | string \| null | Giá trị **trước** khi đổi. `null` với `new_storm` / `storm_dissipated` |
+| `currentValue` | string \| null | Giá trị **sau** khi đổi |
+| `lat`, `lon` | number | Vị trí bão lúc alert xảy ra |
+| `windSpeed` | number \| null | **knot** |
+| `category` | string \| null | `category_1`…`category_5` |
+| `title` | string | Đã render sẵn, không đổi về sau |
+| `description` | string | Đã render sẵn. **Không chứa khoảng cách** — alert thuộc về bão, không thuộc thiết bị nào |
+| `observedAt` | string | ISO UTC — provider ghi nhận trạng thái này lúc nào. **Dùng cái này để hiển thị cho user** |
+| `createdAt` | string | ISO UTC — backend phát hiện lúc nào. Lệch với `observedAt` tối đa một chu kỳ scheduler |
+
+`previousValue` / `currentValue` theo từng `type`:
+
+| `type` | `previousValue` | `currentValue` |
+| --- | --- | --- |
+| `new_storm` | `null` | `null` |
+| `category_change` | category cũ (`null` = dưới thang bão) | category mới |
+| `alert_level_change` | mức GDACS cũ | mức GDACS mới |
+| `watch_warning` | advisory cũ | advisory mới |
+| `track_change` | hướng la bàn cũ (`N`…`NNW`) | hướng la bàn mới |
+| `storm_dissipated` | `null` | `null` |
+
+```json
+{ "ok": true, "data": [
+  {
+    "id": "nhc:AL012026|category_change|category_3|2026-08-21T03:00:00.000Z",
+    "stormId": "nhc:AL012026", "trackingId": "nhc:AL012026", "stormName": "Erin",
+    "type": "category_change",
+    "previousValue": "category_2", "currentValue": "category_3",
+    "lat": 22.3, "lon": -68.4, "windSpeed": 100, "category": "category_3",
+    "title": "Erin strengthened",
+    "description": "Erin strengthened from Category 2 to Category 3. Winds now at 185 km/h. Major hurricane. Follow evacuation orders if issued",
+    "observedAt": "2026-08-21T03:00:00.000Z",
+    "createdAt": "2026-08-21T03:42:00.000Z"
+  }
+], "cacheStatus": "bypass" }
+```
+
+**Các trường hợp biên:**
+
+| Tình huống | Kết quả |
+| --- | --- |
+| `stormIds` rỗng `[]` hoặc thiếu | **400** `BAD_REQUEST` (giống `POST /v1/storms/tracking`) |
+| `stormId` sai định dạng, hoặc quá 20 phần tử | 400 `BAD_REQUEST` |
+| `limit` ngoài 1–200, hoặc không phải số nguyên | 400 `BAD_REQUEST` |
+| `stormId` hợp lệ nhưng chưa từng có alert | **200**, `data: []` |
+| Mongo mất kết nối | 503 `STORAGE_UNAVAILABLE` |
+
+**Trạng thái đã đọc/chưa đọc là việc của FE.** Backend không biết user là ai nên không quản lý `read` / `unread`; FE tự lưu `lastSeenAlertAt` hoặc danh sách `id` đã xem ở local.
+
+Ở `STORM_DATA_MODE=fixture`, scheduler không chạy nên `storm_alerts` được seed sẵn vài alert của `nhc:AL022026` và `nhc:AL032026` để FE dựng giao diện.
+
+---
+
+## 13. Nguồn dữ liệu & data test cho từng API
+
+### 13.1 Bảng tổng hợp
 
 | API | Nguồn dữ liệu | Điều kiện có data | ID test đã verify |
 | --- | --- | --- | --- |
 | `/health` | Chính app | **Luôn có** | — |
-| `/v1/storms` | NHC `CurrentStorms.json` + GDACS `geteventlist` | Phải có bão **đang hoạt động** | Fixture mode: luôn có data, xem mục 12.3 |
-| `/track` | NHC KMZ forecast track / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 12.3 |
-| `/cone` | NHC KMZ cone / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 12.3 |
+| `/v1/storms` | NHC `CurrentStorms.json` + GDACS `geteventlist` | Phải có bão **đang hoạt động** | Fixture mode: luôn có data, xem mục 13.3 |
+| `/track` | NHC KMZ forecast track / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 13.3 |
+| `/cone` | NHC KMZ cone / GDACS `getgeometry` | Bão phải **đang active** | Fixture mode: luôn có data, mục 13.3 |
 | `/spaghetti` | NHC A-deck `ftp.nhc.noaa.gov/atcf/aid_public` | Bão trong **mùa hiện tại** | `nhc:AL012026`, `nhc:AL022026` |
 | `/history-track` | NHC B-deck `atcf/archive/{year}` / GDACS | Bão của **mùa trước** | `nhc:AL052025`, `nhc:AL092025`, `nhc:EP032025` |
 | `/weather/current` | OpenWeather Current Weather Data 2.5 | **Luôn có**, mọi lat/lon | — |
@@ -630,10 +707,11 @@ Với alert tự động, APNs custom payload đính kèm `{ "type", "stormId", 
 | `/map-tiles/...` | OpenWeather tile | **Luôn có** | — |
 | `/radar` | RainViewer | **Luôn có** | — |
 | `/v1/devices`, subscription | MongoDB (tự tạo) | Cần Mongo connected | Tự tạo token hex 64 ký tự |
+| `/v1/alerts/query` | MongoDB `storm_alerts` (scheduler tự ghi) | Cần Mongo connected + bão đã có thay đổi | Fixture mode: seed sẵn, mục 13.3 |
 | `/notifications/send` | APNs | Cần device token thật từ app iOS | — |
 
 
-### 12.3 Fixture mode — data bão luôn có cho staging/test
+### 13.3 Fixture mode — data bão luôn có cho staging/test
 
 Khi cần FE/QA test ổn định, không phụ thuộc mùa bão hay upstream, cấu hình:
 
@@ -675,7 +753,7 @@ Ví dụ: gọi `/v1/weather/current?lat=19.4&lon=-116.6` (tâm `nhc:EP072026`) 
 
 Đổi lại dữ liệu thật chỉ cần `STORM_DATA_MODE=live` rồi restart API. Scheduler alert tự động được tắt trong fixture mode; MongoDB, OpenWeather, RainViewer và APNs đều không được kết nối.
 
-### 12.4 Data luôn có — test được ngay
+### 13.4 Data luôn có — test được ngay
 
 ```bash
 BASE=https://project3.vuonghieu.site
@@ -708,7 +786,7 @@ Xem danh sách đầy đủ: <https://ftp.nhc.noaa.gov/atcf/archive/2025/>
 
 Danh sách bão dùng được cho **spaghetti**: xem <https://ftp.nhc.noaa.gov/atcf/aid_public/> — file `a{basin}{NN}{year}.dat.gz` nào có ở đó thì `nhc:{BASIN}{NN}{YEAR}` gọi được.
 
-### 12.5 Giả lập bão NHC đang active để test `/track` và `/cone`
+### 13.5 Giả lập bão NHC đang active để test `/track` và `/cone`
 
 `/track` và `/cone` **chỉ** đọc từ danh sách bão active. Ngoài mùa bão thì không có gì để test. Cách giả lập: trỏ app vào một snapshot NHC đã lưu trữ.
 
@@ -741,14 +819,14 @@ Nên bật override **chỉ khi** cần test track/cone. Xong thì xoá dòng đ
 
 Tìm snapshot khác có bão: liệt kê <https://www.nhc.noaa.gov/archive/activeJson/2025/> rồi chọn file ngày có bão. Nhiều file trả `activeStorms: 0` — phải chọn đúng ngày.
 
-### 12.5 Nguồn provider gốc — tra trực tiếp khi cần đối chiếu
+### 13.6 Nguồn provider gốc — tra trực tiếp khi cần đối chiếu
 
 | Provider | URL | Dùng cho |
 | --- | --- | --- |
 | NHC active storms | <https://www.nhc.noaa.gov/CurrentStorms.json> | `/v1/storms`, `/track`, `/cone` |
 | NHC snapshot cũ | <https://www.nhc.noaa.gov/archive/activeJson/> | Giả lập bão active |
 | NHC B-deck archive | <https://ftp.nhc.noaa.gov/atcf/archive/> | `/history-track` (mùa trước) |
-| NHC B-deck mùa hiện tại | <https://ftp.nhc.noaa.gov/atcf/btk/> | Xem mục 12.6 |
+| NHC B-deck mùa hiện tại | <https://ftp.nhc.noaa.gov/atcf/btk/> | Xem mục 13.7 |
 | NHC A-deck | <https://ftp.nhc.noaa.gov/atcf/aid_public/> | `/spaghetti` |
 | GDACS event list | <https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC> | `/v1/storms` (GDACS) |
 | GDACS event data | `.../geteventdata?eventtype=TC&eventid=&episodeid=` | `/track`, `/history-track` (GDACS) |
@@ -762,7 +840,7 @@ curl -s "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist
   | grep -o '"eventid":[0-9]*,"episodeid":[0-9]*' | head
 ```
 
-### 12.6 ⚠️ Hạn chế đã biết: history-track của bão mùa hiện tại
+### 13.7 ⚠️ Hạn chế đã biết: history-track của bão mùa hiện tại
 
 `/history-track` chỉ tìm B-deck ở `atcf/archive/{year}/b{...}.dat.gz`. NHC **chỉ** đưa file vào thư mục archive **khi hết mùa bão**. Bão của mùa đang diễn ra nằm ở `atcf/btk/b{...}.dat` (không nén, không có thư mục năm).
 
@@ -777,6 +855,6 @@ Ví dụ với `nhc:EP072026`:
 
 Format hai file **giống nhau hoàn toàn**, parser hiện tại đọc được cả hai. Chỉ thiếu bước thử `btk/` trước khi thử `archive/`.
 
-Trong khi chờ sửa, dùng bão **mùa 2025** để test history-track (mục 12.4).
+Trong khi chờ sửa, dùng bão **mùa 2025** để test history-track (mục 13.4).
 
 ---

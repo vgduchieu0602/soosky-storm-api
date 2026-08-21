@@ -5,21 +5,17 @@ import test from "node:test";
 import Server from "../src/http/Server.js";
 import RateLimiter from "../src/http/RateLimiter.js";
 import DetectStormAlertsUseCase from "../src/domain/use-cases/alert/DetectStormAlertsUseCase.js";
-import SendPushNotificationUseCase from "../src/domain/use-cases/notification/SendPushNotificationUseCase.js";
 import GetTrackedStormsUseCase from "../src/domain/use-cases/storm/GetTrackedStormsUseCase.js";
 import TestableActiveStormsRepository from "../src/adapters/storm/TestableActiveStormsRepository.js";
 
 import StormSummary from "../src/domain/entities/storm/StormSummary.js";
+import StormAlert from "../src/domain/entities/alert/StormAlert.js";
 import StormState from "../src/domain/entities/alert/StormState.js";
 import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTrack.js";
-import RegionSubscription from "../src/domain/entities/subscription/RegionSubscription.js";
 
 import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
+import StormAlertRepository from "../src/domain/repositories/alert/IStormAlertRepository.js";
 import StormStateRepository from "../src/domain/repositories/alert/IStormStateRepository.js";
-import StormSubscriptionRepository from "../src/domain/repositories/subscription/IStormSubscriptionRepository.js";
-import RegionSubscriptionRepository from "../src/domain/repositories/subscription/IRegionSubscriptionRepository.js";
-import AlertDeliveryRepository from "../src/domain/repositories/alert/IAlertDeliveryRepository.js";
-import PushNotificationRepository from "../src/domain/repositories/notification/IPushNotificationRepository.js";
 import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
 
 import type { ServerUseCases } from "../src/http/Server.js";
@@ -53,6 +49,7 @@ const SEED_STATE: StormState = {
     alertLevel: null,
     watchWarning: null,
     bearing: null,
+    datetime: "2026-08-08T12:00:00.000Z",
 };
 
 // --- In-memory fakes ---------------------------------------------------------
@@ -111,26 +108,27 @@ class FakeHistoricalStormTrackRepository implements HistoricalStormTrackReposito
     }
 }
 
-class NoopStormSubscriptionRepository implements StormSubscriptionRepository {
-    public async subscribe (): Promise<boolean> { return true; }
-    public async unsubscribe (): Promise<boolean> { return true; }
-    public async listDeviceTokensForStorm (): Promise<string[]> { return []; }
-}
+class MemoryStormAlertRepository implements StormAlertRepository {
+    public readonly alerts = new Map<string, StormAlert>();
 
-class NoopRegionSubscriptionRepository implements RegionSubscriptionRepository {
-    public async saveRegion (): Promise<void> {}
-    public async listRegions (): Promise<RegionSubscription[]> {
-        return [];
+    public async saveAlerts (alerts: StormAlert[]): Promise<number> {
+        let saved = 0;
+
+        for (const alert of alerts) {
+            if (this.alerts.has(alert.id)) {
+                continue;
+            }
+
+            this.alerts.set(alert.id, alert);
+            saved += 1;
+        }
+
+        return saved;
     }
-}
 
-class NoopAlertDeliveryRepository implements AlertDeliveryRepository {
-    public async claimDelivery (): Promise<boolean> { return true; }
-    public async removeDeliveries (): Promise<void> {}
-}
-
-class NoopPushNotificationRepository implements PushNotificationRepository {
-    public async sendPushNotification (): Promise<void> {}
+    public async listAlertsByTrackingIds (trackingIds: string[]): Promise<StormAlert[]> {
+        return [...this.alerts.values()].filter((alert) => trackingIds.includes(alert.trackingId));
+    }
 }
 
 // --- Server factory ----------------------------------------------------------
@@ -159,10 +157,7 @@ async function makeServer (
     const detectStormAlerts = new DetectStormAlertsUseCase(
         testableStormRepository,
         stateRepo,
-        new NoopStormSubscriptionRepository(),
-        new NoopRegionSubscriptionRepository(),
-        new NoopAlertDeliveryRepository(),
-        new SendPushNotificationUseCase(new NoopPushNotificationRepository()),
+        new MemoryStormAlertRepository(),
     );
     const getTrackedStorms = new GetTrackedStormsUseCase(
         testableStormRepository,

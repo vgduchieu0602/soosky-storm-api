@@ -20,7 +20,9 @@ import MongoDeviceRepository from "./adapters/mongo/MongoDeviceRepository.js";
 import MongoStormSubscriptionRepository from "./adapters/mongo/MongoStormSubscriptionRepository.js";
 import MongoRegionSubscriptionRepository from "./adapters/mongo/MongoRegionSubscriptionRepository.js";
 import MongoStormStateRepository from "./adapters/mongo/MongoStormStateRepository.js";
+import MongoStormAlertRepository from "./adapters/mongo/MongoStormAlertRepository.js";
 import MongoAlertDeliveryRepository from "./adapters/mongo/MongoAlertDeliveryRepository.js";
+import FixtureStormAlertRepository from "./adapters/fixture/FixtureStormAlertRepository.js";
 import startAlertScheduler from "./adapters/scheduler/startAlertScheduler.js";
 import { isMongoConnected } from "./adapters/mongo/runMongoOperation.js";
 import NhcSpaghettiRepository from "./adapters/nhc/NhcSpaghettiRepository.js";
@@ -46,6 +48,8 @@ import SubscribeToStormUseCase from "./domain/use-cases/subscription/SubscribeTo
 import UnsubscribeFromStormUseCase from "./domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
 import SaveRegionSubscriptionUseCase from "./domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
 import DetectStormAlertsUseCase from "./domain/use-cases/alert/DetectStormAlertsUseCase.js";
+import DeliverStormAlertPushUseCase from "./domain/use-cases/alert/DeliverStormAlertPushUseCase.js";
+import GetStormAlertsUseCase from "./domain/use-cases/alert/GetStormAlertsUseCase.js";
 import GetCurrentWeatherUseCase from "./domain/use-cases/weather/GetCurrentWeatherUseCase.js";
 import GetForecastWeatherUseCase from "./domain/use-cases/weather/GetForecastWeatherUseCase.js";
 import GetMapTileUseCase from "./domain/use-cases/map/GetMapTileUseCase.js";
@@ -121,8 +125,6 @@ const sourceSpaghettiRepository = fixtureStormRepository
     : new NhcSpaghettiRepository(NHC_ATCF_AID_PUBLIC_URL);
 const spaghettiRepository = new CachedSpaghettiRepository(sourceSpaghettiRepository, STORM_CACHE_TTL_MS);
 
-// One fixture instance serves both weather ports so the forecast and the current
-// observation agree with each other and with the fixture storm positions.
 const fixtureWeatherRepository = fixtureStormRepository ? new FixtureWeatherRepository() : null;
 const forecastWeatherRepository = new CachedForecastWeatherRepository(
     fixtureWeatherRepository ?? new OpenWeatherForecastRepository(OPENWEATHER_API_KEY),
@@ -151,6 +153,11 @@ const regionSubscriptionRepository = fixtureStormRepository
     ? new FixtureRegionSubscriptionRepository()
     : new MongoRegionSubscriptionRepository();
 const stormStateRepository = new MongoStormStateRepository();
+// Fixture mode seeds a few alerts so the in-app alerts screen has something to show:
+// the detection scheduler does not run without live data.
+const stormAlertRepository = fixtureStormRepository
+    ? new FixtureStormAlertRepository()
+    : new MongoStormAlertRepository();
 const alertDeliveryRepository = new MongoAlertDeliveryRepository();
 const historicalStormTrackRepository = new CachedHistoricalStormTrackRepository(
     fixtureStormRepository ?? new CompositeHistoricalStormTrackRepository(
@@ -166,6 +173,11 @@ const sendPushNotification = new SendPushNotificationUseCase(pushNotificationRep
 const detectStormAlerts = new DetectStormAlertsUseCase(
     testableStormRepository,
     stormStateRepository,
+    stormAlertRepository,
+);
+// Push runs after detection, never inside it: a recorded alert must not depend on a
+// device having granted notification permission.
+const deliverStormAlertPush = new DeliverStormAlertPushUseCase(
     stormSubscriptionRepository,
     regionSubscriptionRepository,
     alertDeliveryRepository,
@@ -204,6 +216,9 @@ const useCases = {
         unsubscribeFromStorm: new UnsubscribeFromStormUseCase(stormSubscriptionRepository),
         saveRegionSubscription: new SaveRegionSubscriptionUseCase(regionSubscriptionRepository),
     },
+    alert: {
+        getStormAlerts: new GetStormAlertsUseCase(stormAlertRepository),
+    },
     test: isTestModeActive ? { detectStormAlerts } : undefined,
 };
 const rateLimiter = new RateLimiter(config.rateLimit);
@@ -233,6 +248,7 @@ const testModeState = isTestModeActive
         if (config.alerts.enabled && config.stormDataMode === "live") {
             startAlertScheduler(detectStormAlerts, {
                 intervalMs: config.alerts.pollIntervalMs,
+                deliverStormAlertPush,
                 isReady: isMongoConnected,
             });
             console.log("Storm alert detection every " + config.alerts.pollIntervalMs + " ms.");
