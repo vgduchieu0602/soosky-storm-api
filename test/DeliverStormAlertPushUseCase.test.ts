@@ -8,8 +8,8 @@ import AlertDeliveryRepository from "../src/domain/repositories/alert/IAlertDeli
 import PushNotificationRepository from "../src/domain/repositories/notification/IPushNotificationRepository.js";
 import RegionSubscriptionRepository from "../src/domain/repositories/subscription/IRegionSubscriptionRepository.js";
 import StormSubscriptionRepository from "../src/domain/repositories/subscription/IStormSubscriptionRepository.js";
-import SendPushNotificationUseCase from "../src/domain/use-cases/notification/SendPushNotificationUseCase.js";
-import DeliverStormAlertPushUseCase from "../src/domain/use-cases/alert/DeliverStormAlertPushUseCase.js";
+import SendPushNotificationUseCase from "../src/application/use-cases/notification/SendPushNotificationUseCase.js";
+import DeliverStormAlertPushUseCase from "../src/application/use-cases/alert/DeliverStormAlertPushUseCase.js";
 
 const FOLLOWER = "a".repeat(64);
 const NEARBY = "b".repeat(64);

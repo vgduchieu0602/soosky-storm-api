@@ -4,8 +4,8 @@ import MapTile, { MapTileQuery } from "../src/domain/entities/map/MapTile.js";
 import Radar from "../src/domain/entities/radar/Radar.js";
 import MapTileRepository from "../src/domain/repositories/map/IMapTileRepository.js";
 import RadarRepository from "../src/domain/repositories/radar/IRadarRepository.js";
-import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
-import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
+import GetMapTileUseCase from "../src/application/use-cases/map/GetMapTileUseCase.js";
+import GetRadarUseCase from "../src/application/use-cases/radar/GetRadarUseCase.js";
 
 test("Map Tile use case delegates the exact tile query and returns its PNG buffer", async () => {
     const repository = new MemoryMapTileRepository();

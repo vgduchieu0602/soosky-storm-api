@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import DetectStormAlertsUseCase, { DetectStormAlertsResult } from "../src/domain/use-cases/alert/DetectStormAlertsUseCase.js";
-import startAlertScheduler from "../src/adapters/scheduler/startAlertScheduler.js";
+import DetectStormAlertsUseCase, { DetectStormAlertsResult } from "../src/application/use-cases/alert/DetectStormAlertsUseCase.js";
+import startAlertScheduler from "../src/scheduler/startAlertScheduler.js";
 import { getBearing, getDistanceKm, toCompassDirection } from "../src/domain/services/geo.js";
 
 test("scheduler runs a detection cycle", async () => {

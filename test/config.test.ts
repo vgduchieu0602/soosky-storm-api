@@ -65,9 +65,12 @@ test("cache TTLs default to production values when the environment does not over
 });
 
 test("fixture mode still wires map and radar to their live providers", async () => {
-    const appSource = await readFile(new URL("../src/app.ts", import.meta.url), "utf-8");
+    const source = await readFile(
+        new URL("../src/composition/createWeatherDependencies.ts", import.meta.url),
+        "utf-8",
+    );
 
-    assert.doesNotMatch(appSource, /fixtureStormRepository \? new Fixture(MapTile|Radar)Repository/);
-    assert.match(appSource, /new OpenWeatherMapTileRepository\(OPENWEATHER_API_KEY\)/);
-    assert.match(appSource, /new RainViewerRadarRepository\(\)/);
+    assert.doesNotMatch(source, /Fixture(MapTile|Radar)Repository/);
+    assert.match(source, /new OpenWeatherMapTileRepository\(openWeather\.apiKey\)/);
+    assert.match(source, /new RainViewerRadarRepository\(\)/);
 });

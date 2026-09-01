@@ -3,9 +3,8 @@ import { AddressInfo } from "node:net";
 import test from "node:test";
 
 import Server from "../src/http/Server.js";
-import RateLimiter from "../src/http/RateLimiter.js";
-import DetectStormAlertsUseCase from "../src/domain/use-cases/alert/DetectStormAlertsUseCase.js";
-import GetTrackedStormsUseCase from "../src/domain/use-cases/storm/GetTrackedStormsUseCase.js";
+import DetectStormAlertsUseCase from "../src/application/use-cases/alert/DetectStormAlertsUseCase.js";
+import GetTrackedStormsUseCase from "../src/application/use-cases/storm/GetTrackedStormsUseCase.js";
 import TestableActiveStormsRepository from "../src/adapters/storm/TestableActiveStormsRepository.js";
 
 import StormSummary from "../src/domain/entities/storm/StormSummary.js";
@@ -169,10 +168,8 @@ async function makeServer (
         test: { detectStormAlerts },
     } as unknown as ServerUseCases;
 
-    const rateLimiter = new RateLimiter({ enabled: false, windowMs: 60_000, ipMax: 10 });
     const server = new Server(
         { http: { host: "127.0.0.1", port: 0 } },
-        rateLimiter,
         useCases,
         () => "connected",
         {

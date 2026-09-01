@@ -6,7 +6,7 @@ import StormSummary from "../src/domain/entities/storm/StormSummary.js";
 import ActiveStormsRepository from "../src/domain/repositories/storm/IActiveStormsRepository.js";
 import StormAlertRepository from "../src/domain/repositories/alert/IStormAlertRepository.js";
 import StormStateRepository from "../src/domain/repositories/alert/IStormStateRepository.js";
-import DetectStormAlertsUseCase from "../src/domain/use-cases/alert/DetectStormAlertsUseCase.js";
+import DetectStormAlertsUseCase from "../src/application/use-cases/alert/DetectStormAlertsUseCase.js";
 
 const STORM_ID = "nhc:EP072026";
 

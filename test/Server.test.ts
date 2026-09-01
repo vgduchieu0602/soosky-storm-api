@@ -29,31 +29,29 @@ import StorageUnavailableError from "../src/domain/errors/StorageUnavailableErro
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/repositories/weather/IForecastWeatherRepository.js";
 import MapTileRepository from "../src/domain/repositories/map/IMapTileRepository.js";
 import RadarRepository from "../src/domain/repositories/radar/IRadarRepository.js";
-import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
-import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
-import GetTrackedStormsUseCase from "../src/domain/use-cases/storm/GetTrackedStormsUseCase.js";
-import GetHistoricalStormTrackUseCase from "../src/domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
-import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
-import GetStormSpaghettiUseCase from "../src/domain/use-cases/storm/GetStormSpaghettiUseCase.js";
-import GetStormTrackUseCase from "../src/domain/use-cases/storm/GetStormTrackUseCase.js";
-import GetCurrentWeatherUseCase from "../src/domain/use-cases/weather/GetCurrentWeatherUseCase.js";
-import SendPushNotificationUseCase from "../src/domain/use-cases/notification/SendPushNotificationUseCase.js";
-import RegisterDeviceUseCase from "../src/domain/use-cases/device/RegisterDeviceUseCase.js";
-import SubscribeToStormUseCase from "../src/domain/use-cases/subscription/SubscribeToStormUseCase.js";
-import UnsubscribeFromStormUseCase from "../src/domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
-import SaveRegionSubscriptionUseCase from "../src/domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
-import GetStormAlertsUseCase from "../src/domain/use-cases/alert/GetStormAlertsUseCase.js";
+import GetActiveStormsUseCase from "../src/application/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../src/application/use-cases/storm/GetDemoStormsUseCase.js";
+import GetTrackedStormsUseCase from "../src/application/use-cases/storm/GetTrackedStormsUseCase.js";
+import GetHistoricalStormTrackUseCase from "../src/application/use-cases/storm/GetHistoricalStormTrackUseCase.js";
+import GetStormConeUseCase from "../src/application/use-cases/storm/GetStormConeUseCase.js";
+import GetStormSpaghettiUseCase from "../src/application/use-cases/storm/GetStormSpaghettiUseCase.js";
+import GetStormTrackUseCase from "../src/application/use-cases/storm/GetStormTrackUseCase.js";
+import GetCurrentWeatherUseCase from "../src/application/use-cases/weather/GetCurrentWeatherUseCase.js";
+import SendPushNotificationUseCase from "../src/application/use-cases/notification/SendPushNotificationUseCase.js";
+import RegisterDeviceUseCase from "../src/application/use-cases/device/RegisterDeviceUseCase.js";
+import SubscribeToStormUseCase from "../src/application/use-cases/subscription/SubscribeToStormUseCase.js";
+import UnsubscribeFromStormUseCase from "../src/application/use-cases/subscription/UnsubscribeFromStormUseCase.js";
+import SaveRegionSubscriptionUseCase from "../src/application/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
+import GetStormAlertsUseCase from "../src/application/use-cases/alert/GetStormAlertsUseCase.js";
 import StormAlert from "../src/domain/entities/alert/StormAlert.js";
 import StormAlertRepository from "../src/domain/repositories/alert/IStormAlertRepository.js";
-import GetForecastWeatherUseCase from "../src/domain/use-cases/weather/GetForecastWeatherUseCase.js";
-import GetMapTileUseCase from "../src/domain/use-cases/map/GetMapTileUseCase.js";
-import GetRadarUseCase from "../src/domain/use-cases/radar/GetRadarUseCase.js";
+import GetForecastWeatherUseCase from "../src/application/use-cases/weather/GetForecastWeatherUseCase.js";
+import GetMapTileUseCase from "../src/application/use-cases/map/GetMapTileUseCase.js";
+import GetRadarUseCase from "../src/application/use-cases/radar/GetRadarUseCase.js";
 import { markCacheStatus } from "../src/domain/services/cacheStatus.js";
-import RateLimiter from "../src/http/RateLimiter.js";
 import Server from "../src/http/Server.js";
 
 let server: Server;
-let rateLimiter: RateLimiter;
 let stormRepository: TestStormRepository;
 let spaghettiRepository: TestSpaghettiRepository;
 let forecastWeatherRepository: TestForecastWeatherRepository;
@@ -554,11 +552,6 @@ class TestHistoricalStormTrackRepository implements HistoricalStormTrackReposito
 
 before(async () => {
     databaseStatus = "connected";
-    rateLimiter = new RateLimiter({
-        enabled: false,
-        windowMs: 60_000,
-        ipMax: 10,
-    });
     stormRepository = new TestStormRepository();
     spaghettiRepository = new TestSpaghettiRepository();
     forecastWeatherRepository = new TestForecastWeatherRepository();
@@ -576,7 +569,7 @@ before(async () => {
             host: "127.0.0.1",
             port: 0,
         },
-    }, rateLimiter, createUseCases(
+    }, createUseCases(
         stormRepository,
         spaghettiRepository,
         forecastWeatherRepository,
@@ -602,8 +595,6 @@ before(async () => {
 });
 
 after(async () => {
-    rateLimiter.dispose();
-
     if (server) {
         await server.close();
     }
@@ -1756,7 +1747,7 @@ test("POST /v1/alerts/query rejects an invalid request", async (context) => {
 test("POST /v1/alerts/query reports a database outage as 503", async () => {
     const outageServer = new Server({
         http: { host: "127.0.0.1", port: 0 },
-    }, rateLimiter, createUseCases(
+    }, createUseCases(
         stormRepository,
         spaghettiRepository,
         forecastWeatherRepository,
@@ -2069,44 +2060,6 @@ test("PUT /v1/region-subscriptions reports a database outage as 503", async () =
         assert.equal((await response.json()).code, "STORAGE_UNAVAILABLE");
     } finally {
         regionSubscriptionRepository.error = null;
-    }
-});
-
-test("returns the rate-limited envelope after the IP quota is exhausted", async () => {
-    const limitedRateLimiter = new RateLimiter({
-        enabled: true,
-        windowMs: 60_000,
-        ipMax: 1,
-    });
-    const limitedServer = new Server({
-        http: {
-            host: "127.0.0.1",
-            port: 0,
-        },
-    }, limitedRateLimiter, createUseCases(new TestStormRepository(), new TestSpaghettiRepository()));
-    const listener = await limitedServer.listen();
-    const address = listener.address();
-
-    if (!address || typeof address === "string") {
-        throw new Error("Expected the HTTP server to bind to a TCP port.");
-    }
-
-    const limitedBaseUrl = "http://127.0.0.1:" + (address as AddressInfo).port;
-
-    try {
-        const firstResponse = await fetch(limitedBaseUrl + "/health");
-        const secondResponse = await fetch(limitedBaseUrl + "/health");
-
-        assert.equal(firstResponse.status, 200);
-        assert.equal(secondResponse.status, 429);
-        assert.deepEqual(await secondResponse.json(), {
-            ok: false,
-            code: "RATE_LIMITED",
-            reason: "Too many requests",
-        });
-    } finally {
-        limitedRateLimiter.dispose();
-        await limitedServer.close();
     }
 });
 

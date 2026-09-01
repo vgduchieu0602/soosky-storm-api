@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import StormAlert from "../src/domain/entities/alert/StormAlert.js";
 import StormAlertRepository from "../src/domain/repositories/alert/IStormAlertRepository.js";
-import GetStormAlertsUseCase from "../src/domain/use-cases/alert/GetStormAlertsUseCase.js";
+import GetStormAlertsUseCase from "../src/application/use-cases/alert/GetStormAlertsUseCase.js";
 
 test("asks for the storms the caller is tracking", async () => {
     const repository = new RecordingStormAlerts();

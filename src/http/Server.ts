@@ -2,33 +2,33 @@ import http from "node:http";
 import express, { NextFunction, Request, RequestHandler, Response } from "express";
 import StormNotFoundError from "../domain/errors/StormNotFoundError.js";
 import StormProviderError from "../domain/errors/StormProviderError.js";
-import GetActiveStormsUseCase from "../domain/use-cases/storm/GetActiveStormsUseCase.js";
-import GetDemoStormsUseCase from "../domain/use-cases/storm/GetDemoStormsUseCase.js";
-import GetTrackedStormsUseCase from "../domain/use-cases/storm/GetTrackedStormsUseCase.js";
-import GetStormConeUseCase from "../domain/use-cases/storm/GetStormConeUseCase.js";
-import GetStormSpaghettiUseCase from "../domain/use-cases/storm/GetStormSpaghettiUseCase.js";
-import GetStormTrackUseCase from "../domain/use-cases/storm/GetStormTrackUseCase.js";
-import GetForecastWeatherUseCase from "../domain/use-cases/weather/GetForecastWeatherUseCase.js";
+import GetActiveStormsUseCase from "../application/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../application/use-cases/storm/GetDemoStormsUseCase.js";
+import GetTrackedStormsUseCase from "../application/use-cases/storm/GetTrackedStormsUseCase.js";
+import GetStormConeUseCase from "../application/use-cases/storm/GetStormConeUseCase.js";
+import GetStormSpaghettiUseCase from "../application/use-cases/storm/GetStormSpaghettiUseCase.js";
+import GetStormTrackUseCase from "../application/use-cases/storm/GetStormTrackUseCase.js";
+import GetForecastWeatherUseCase from "../application/use-cases/weather/GetForecastWeatherUseCase.js";
 import { ForecastUnits } from "../domain/entities/weather/ForecastWeather.js";
 import { MAP_LAYERS, MAX_MAP_ZOOM, MapLayer } from "../domain/entities/map/MapTile.js";
 import { StormSource } from "../domain/entities/storm/StormSummary.js";
-import GetCurrentWeatherUseCase from "../domain/use-cases/weather/GetCurrentWeatherUseCase.js";
-import GetMapTileUseCase from "../domain/use-cases/map/GetMapTileUseCase.js";
-import GetRadarUseCase from "../domain/use-cases/radar/GetRadarUseCase.js";
-import SendPushNotificationUseCase from "../domain/use-cases/notification/SendPushNotificationUseCase.js";
+import GetCurrentWeatherUseCase from "../application/use-cases/weather/GetCurrentWeatherUseCase.js";
+import GetMapTileUseCase from "../application/use-cases/map/GetMapTileUseCase.js";
+import GetRadarUseCase from "../application/use-cases/radar/GetRadarUseCase.js";
+import SendPushNotificationUseCase from "../application/use-cases/notification/SendPushNotificationUseCase.js";
 import PushNotificationError from "../domain/errors/PushNotificationError.js";
 import PushNotification from "../domain/entities/notification/PushNotification.js";
 import { STORM_ALERT_TYPES, StormAlertType } from "../domain/entities/alert/StormAlert.js";
 import StorageUnavailableError from "../domain/errors/StorageUnavailableError.js";
 import { isDeviceToken } from "../domain/entities/device/Device.js";
 import { MAX_REGION_RADIUS_KM, MIN_REGION_RADIUS_KM } from "../domain/entities/subscription/RegionSubscription.js";
-import RegisterDeviceUseCase from "../domain/use-cases/device/RegisterDeviceUseCase.js";
-import SubscribeToStormUseCase from "../domain/use-cases/subscription/SubscribeToStormUseCase.js";
-import UnsubscribeFromStormUseCase from "../domain/use-cases/subscription/UnsubscribeFromStormUseCase.js";
-import SaveRegionSubscriptionUseCase from "../domain/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
-import GetHistoricalStormTrackUseCase from "../domain/use-cases/storm/GetHistoricalStormTrackUseCase.js";
-import DetectStormAlertsUseCase from "../domain/use-cases/alert/DetectStormAlertsUseCase.js";
-import GetStormAlertsUseCase, { MAX_ALERT_LIMIT } from "../domain/use-cases/alert/GetStormAlertsUseCase.js";
+import RegisterDeviceUseCase from "../application/use-cases/device/RegisterDeviceUseCase.js";
+import SubscribeToStormUseCase from "../application/use-cases/subscription/SubscribeToStormUseCase.js";
+import UnsubscribeFromStormUseCase from "../application/use-cases/subscription/UnsubscribeFromStormUseCase.js";
+import SaveRegionSubscriptionUseCase from "../application/use-cases/subscription/SaveRegionSubscriptionUseCase.js";
+import GetHistoricalStormTrackUseCase from "../application/use-cases/storm/GetHistoricalStormTrackUseCase.js";
+import DetectStormAlertsUseCase from "../application/use-cases/alert/DetectStormAlertsUseCase.js";
+import GetStormAlertsUseCase, { MAX_ALERT_LIMIT } from "../application/use-cases/alert/GetStormAlertsUseCase.js";
 import ActiveStormsRepository from "../domain/repositories/storm/IActiveStormsRepository.js";
 import StormStateRepository from "../domain/repositories/alert/IStormStateRepository.js";
 import TestableActiveStormsRepository from "../adapters/storm/TestableActiveStormsRepository.js";
@@ -38,10 +38,9 @@ import formatResponseData from "./formatResponseData.js";
 import formatStormTrackResponse from "./formatStormTrackResponse.js";
 import formatStormSummaryResponse from "./formatStormSummaryResponse.js";
 import formatTrackedStormResponse from "./formatTrackedStormResponse.js";
-import RateLimiter from "./RateLimiter.js";
 
 export { Server as default };
-export type { ServerConfig, ServerUseCases };
+export type { ServerConfig, ServerUseCases, TestModeState };
 
 interface TestModeState {
     readonly hiddenStormIds: Set<string>;
@@ -54,7 +53,6 @@ interface ServerConfig {
     readonly http: {
         readonly host: string;
         readonly port: number;
-        readonly trustProxy?: boolean | number | string;
     };
 }
 
@@ -156,7 +154,6 @@ class Server {
 
     public constructor (
         private readonly _config: ServerConfig,
-        private readonly _rateLimiter: RateLimiter,
         private readonly _useCases: ServerUseCases,
         private readonly _getDatabaseStatus: () => string = () => "unknown",
         private readonly _testModeState: TestModeState | null = null,
@@ -202,22 +199,7 @@ class Server {
     }
 
     private _registerRouter (): void {
-        this._server.set("trust proxy", this._config.http.trustProxy ?? 1);
         this._server.use(express.json({ limit: "64kb" }));
-        this._server.use((request: Request, response: Response, next: NextFunction) => {
-            const scope = this._rateLimiter.check(request.ip ?? "unknown");
-
-            if (!scope) {
-                next();
-                return;
-            }
-
-            response.status(429).json({
-                ok: false,
-                code: "RATE_LIMITED",
-                reason: "Too many requests",
-            });
-        });
 
         for (const [method, path, handler] of this._routes) {
             this._server[method](path, handler.bind(this));

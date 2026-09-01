@@ -7,10 +7,10 @@ import HistoricalStormTrack from "../src/domain/entities/storm/HistoricalStormTr
 import StormNotFoundError from "../src/domain/errors/StormNotFoundError.js";
 import StormRepository from "../src/domain/repositories/storm/IStormRepository.js";
 import HistoricalStormTrackRepository from "../src/domain/repositories/storm/IHistoricalStormTrackRepository.js";
-import GetActiveStormsUseCase from "../src/domain/use-cases/storm/GetActiveStormsUseCase.js";
-import GetDemoStormsUseCase from "../src/domain/use-cases/storm/GetDemoStormsUseCase.js";
-import GetStormConeUseCase from "../src/domain/use-cases/storm/GetStormConeUseCase.js";
-import GetStormTrackUseCase from "../src/domain/use-cases/storm/GetStormTrackUseCase.js";
+import GetActiveStormsUseCase from "../src/application/use-cases/storm/GetActiveStormsUseCase.js";
+import GetDemoStormsUseCase from "../src/application/use-cases/storm/GetDemoStormsUseCase.js";
+import GetStormConeUseCase from "../src/application/use-cases/storm/GetStormConeUseCase.js";
+import GetStormTrackUseCase from "../src/application/use-cases/storm/GetStormTrackUseCase.js";
 
 test("Storms use case returns active storm summaries from the repository", async () => {
     const summary: StormSummary = {

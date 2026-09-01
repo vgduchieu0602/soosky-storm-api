@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 
 export { config as default };
+export type { AppConfig };
+
+type AppConfig = typeof config;
 
 class InvalidEnvVarError extends Error {
     public constructor (key: string, expectation: string) {
@@ -30,7 +33,6 @@ const config = {
     http: {
         port: readPositiveInt("HTTP_PORT", 3000),
         host: process.env.HTTP_HOST || "0.0.0.0",
-        trustProxy: readTrustProxy(),
     },
     mongo: {
         uri: process.env.MONGO_URI,
@@ -77,12 +79,6 @@ const config = {
         enabled: process.env.ALERTS_ENABLED !== "false",
         pollIntervalMs: readPositiveInt("ALERTS_POLL_INTERVAL_MS", 900_000),
         testMode: process.env.STORM_ALERT_TEST_MODE === "true",
-    },
-    rateLimit: {
-        enabled: process.env.RATE_LIMIT_ENABLED !== "false",
-        windowMs: readPositiveInt("RATE_LIMIT_WINDOW_MS", 60_000),
-        ipMax: readPositiveInt("RATE_LIMIT_IP_MAX", 60),
-        maxTrackedIps: readPositiveInt("RATE_LIMIT_MAX_TRACKED_IPS", 10_000),
     },
 };
 
@@ -131,28 +127,6 @@ function readApnsEnvironment (): "development" | "production" {
 
     if (value !== "development" && value !== "production") {
         throw new InvalidEnvVarError("APNS_ENVIRONMENT", "'development' or 'production'");
-    }
-
-    return value;
-}
-
-function readTrustProxy (): boolean | number | string {
-    const raw = process.env.HTTP_TRUST_PROXY;
-
-    if (raw === undefined || !raw.trim()) {
-        return 1;
-    }
-
-    const value = raw.trim();
-
-    if (value === "true" || value === "false") {
-        return value === "true";
-    }
-
-    const hopCount = Number(value);
-
-    if (Number.isSafeInteger(hopCount) && hopCount >= 0) {
-        return hopCount;
     }
 
     return value;

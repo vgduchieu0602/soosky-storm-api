@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import ForecastWeather from "../src/domain/entities/weather/ForecastWeather.js";
 import ForecastWeatherRepository, { ForecastWeatherQuery } from "../src/domain/repositories/weather/IForecastWeatherRepository.js";
-import GetForecastWeatherUseCase from "../src/domain/use-cases/weather/GetForecastWeatherUseCase.js";
+import GetForecastWeatherUseCase from "../src/application/use-cases/weather/GetForecastWeatherUseCase.js";
 
 test("Forecast Weather use case delegates the requested location and units", async () => {
     const repository = new MemoryForecastWeatherRepository();

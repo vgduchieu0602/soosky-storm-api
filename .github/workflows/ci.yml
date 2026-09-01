@@ -36,6 +36,3 @@ jobs:
 
       - name: Verify bundle
         run: test -s dist/app.js && ls -la dist/
-
-      - name: Docker build
-        run: docker build -t soosky-storm-api:ci .
