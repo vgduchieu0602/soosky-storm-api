@@ -51,8 +51,6 @@ function startAlertScheduler (
 
         try {
             const result = await detectStormAlerts.execute();
-            // Detection has already stored the alerts. A push failure past this point
-            // costs a notification, never the alert itself.
             const delivery = deliverStormAlertPush
                 ? await deliverStormAlertPush.execute(result.alerts)
                 : null;
