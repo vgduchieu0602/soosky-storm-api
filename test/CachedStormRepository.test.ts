@@ -3,8 +3,10 @@ import test from "node:test";
 import StormSummary from "../src/domain/entities/storm/StormSummary.js";
 import StormCone from "../src/domain/entities/storm/StormCone.js";
 import StormTrack from "../src/domain/entities/storm/StormTrack.js";
+import StormProviderError from "../src/domain/errors/StormProviderError.js";
 import StormRepository from "../src/domain/repositories/storm/IStormRepository.js";
 import CachedStormRepository from "../src/adapters/cache/CachedStormRepository.js";
+import { getCacheStatus } from "../src/domain/services/cacheStatus.js";
 
 test("Storm Track cache reuses a normalized track until the two-hour TTL expires", async () => {
     const source = new CountingStormRepository();
@@ -30,15 +32,17 @@ test("Storm Track cache reuses a normalized track until the two-hour TTL expires
     assert.equal(refreshed.cachedUntil, "2026-08-04T04:00:00.000Z");
 });
 
-test("Storm List cache reuses an active-storm list for one hour, including an empty list", async () => {
+test("Storm List cache returns fresh data without calling the provider, including for an empty list", async () => {
     const source = new CountingStormRepository();
     let now = Date.parse("2026-08-05T00:00:00.000Z");
     const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
 
-    await repository.getActiveStorms();
-    await repository.getActiveStorms();
+    const first = await repository.getActiveStorms();
+    const second = await repository.getActiveStorms();
 
     assert.equal(source.listCalls, 1);
+    assert.equal(getCacheStatus(first), "upstream");
+    assert.equal(getCacheStatus(second), "cached");
 
     now = Date.parse("2026-08-05T00:59:59.000Z");
     await repository.getActiveStorms();
@@ -49,6 +53,94 @@ test("Storm List cache reuses an active-storm list for one hour, including an em
     await repository.getActiveStorms();
 
     assert.equal(source.listCalls, 2);
+});
+
+test("Storm List cache refreshes expired data when the provider succeeds", async () => {
+    const source = new CountingStormRepository([[stormSummary("old")], [stormSummary("new")]]);
+    let now = Date.parse("2026-08-05T00:00:00.000Z");
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
+
+    assert.deepEqual(await repository.getActiveStorms(), [stormSummary("old")]);
+
+    now += 3_600_000;
+    const refreshed = await repository.getActiveStorms();
+
+    assert.deepEqual(refreshed, [stormSummary("new")]);
+    assert.equal(getCacheStatus(refreshed), "upstream");
+    assert.equal(source.listCalls, 2);
+
+    const fresh = await repository.getActiveStorms();
+    assert.deepEqual(fresh, [stormSummary("new")]);
+    assert.equal(getCacheStatus(fresh), "cached");
+    assert.equal(source.listCalls, 2);
+});
+
+test("Storm List cache returns stale data when an expired refresh has an upstream failure", async () => {
+    const source = new CountingStormRepository([[stormSummary("old")]]);
+    let now = Date.parse("2026-08-05T00:00:00.000Z");
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
+
+    await repository.getActiveStorms();
+    now += 3_600_000;
+    source.listError = new StormProviderError("NHC list failed.");
+
+    const stale = await repository.getActiveStorms();
+
+    assert.deepEqual(stale, [stormSummary("old")]);
+    assert.equal(getCacheStatus(stale), "stale");
+    assert.equal(source.listCalls, 2);
+});
+
+test("Storm List cache propagates an upstream failure when no cached value exists", async () => {
+    const source = new CountingStormRepository();
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000);
+    source.listError = new StormProviderError("NHC list failed.");
+
+    await assert.rejects(repository.getActiveStorms(), StormProviderError);
+    assert.equal(source.listCalls, 1);
+});
+
+test("Storm List cache replaces stale data when the provider recovers", async () => {
+    const source = new CountingStormRepository([[stormSummary("old")], [stormSummary("new")]]);
+    let now = Date.parse("2026-08-05T00:00:00.000Z");
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
+
+    await repository.getActiveStorms();
+    now += 3_600_000;
+    source.listError = new StormProviderError("NHC list failed.");
+    assert.equal(getCacheStatus(await repository.getActiveStorms()), "stale");
+
+    source.listError = null;
+    const recovered = await repository.getActiveStorms();
+
+    assert.deepEqual(recovered, [stormSummary("new")]);
+    assert.equal(getCacheStatus(recovered), "upstream");
+    assert.equal(source.listCalls, 3);
+});
+
+test("Storm List cache does not hide unexpected errors behind stale data", async () => {
+    const source = new CountingStormRepository([[stormSummary("old")]]);
+    let now = Date.parse("2026-08-05T00:00:00.000Z");
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000, () => now);
+
+    await repository.getActiveStorms();
+    now += 3_600_000;
+    source.listError = new TypeError("Unexpected malformed response.");
+
+    await assert.rejects(repository.getActiveStorms(), TypeError);
+    assert.equal(source.listCalls, 2);
+});
+
+test("Storm List cache keeps provider-specific results separate from the all-provider result", async () => {
+    const source = new CountingStormRepository();
+    const repository = new CachedStormRepository(source, 7_200_000, 3_600_000);
+
+    await repository.getActiveStorms();
+    await repository.getActiveStorms("nhc");
+    await repository.getActiveStorms("nhc");
+    await repository.getActiveStorms("gdacs");
+
+    assert.deepEqual(source.listSources, [undefined, "nhc", "gdacs"]);
 });
 
 test("Storm Cone cache reuses an available cone until the two-hour TTL expires", async () => {
@@ -94,13 +186,22 @@ test("Storm caches refresh an older track and do not retain a cone larger than i
 
 class CountingStormRepository implements StormRepository {
     public listCalls = 0;
+    public readonly listSources: (StormSummary["source"] | undefined)[] = [];
+    public listError: Error | null = null;
     public trackCalls = 0;
     public coneCalls = 0;
 
-    public async getActiveStorms (): Promise<StormSummary[]> {
-        this.listCalls += 1;
+    public constructor (private readonly _listResponses: StormSummary[][] = [[]]) {}
 
-        return [];
+    public async getActiveStorms (source?: StormSummary["source"]): Promise<StormSummary[]> {
+        this.listCalls += 1;
+        this.listSources.push(source);
+
+        if (this.listError) {
+            throw this.listError;
+        }
+
+        return this._listResponses[Math.min(this.listCalls - 1, this._listResponses.length - 1)]!;
     }
 
     public async getStormTrack (stormId: string): Promise<StormTrack> {
@@ -140,4 +241,18 @@ class CountingStormRepository implements StormRepository {
             },
         };
     }
+}
+
+function stormSummary (name: string): StormSummary {
+    return {
+        stormId: "nhc:EP072026",
+        name,
+        source: "nhc",
+        basin: "eastern_north_pacific",
+        lat: 22.3,
+        lon: -130.2,
+        datetime: "2026-08-05T00:00:00.000Z",
+        windSpeed: 50,
+        category: null,
+    };
 }

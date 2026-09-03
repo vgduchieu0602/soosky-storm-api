@@ -13,7 +13,7 @@ class GetActiveStormsUseCase {
     public constructor (private readonly _stormRepo: ActiveStormsRepository) {}
 
     public async execute (query: GetActiveStormsQuery = {}): Promise<StormSummary[]> {
-        const storms = await this._stormRepo.getActiveStorms();
+        const storms = await this._stormRepo.getActiveStorms(query.source);
 
         if (!query.source) {
             return storms;

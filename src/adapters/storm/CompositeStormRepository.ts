@@ -1,6 +1,7 @@
 import StormCone from "../../domain/entities/storm/StormCone.js";
-import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import StormSummary, { StormSource } from "../../domain/entities/storm/StormSummary.js";
 import StormTrack from "../../domain/entities/storm/StormTrack.js";
+import StormProviderError from "../../domain/errors/StormProviderError.js";
 import ActiveStormsRepository from "../../domain/repositories/storm/IActiveStormsRepository.js";
 import StormConeRepository from "../../domain/repositories/storm/IStormConeRepository.js";
 import StormRepository from "../../domain/repositories/storm/IStormRepository.js";
@@ -21,11 +22,21 @@ class CompositeStormRepository implements StormRepository {
         private readonly _logError: (message: string) => void = (message) => console.error(message),
     ) {}
 
-    /**
-     * One provider being down must not hide the other provider's storms, so the
-     * list only fails when every provider fails.
-     */
-    public async getActiveStorms (): Promise<StormSummary[]> {
+    public async getActiveStorms (source?: StormSource): Promise<StormSummary[]> {
+        if (source === "nhc") {
+            return this._nhc.getActiveStorms();
+        }
+
+        if (source === "gdacs") {
+            if (!this._gdacs) {
+                throw new StormProviderError("GDACS active storm provider is unavailable.");
+            }
+
+            return this._gdacs.getActiveStorms();
+        }
+
+        // One provider being down must not hide the other provider's storms, so
+        // the combined list only fails when every provider fails.
         const sources: ActiveStormsRepository[] = this._gdacs ? [this._nhc, this._gdacs] : [this._nhc];
         const results = await Promise.allSettled(sources.map((source) => source.getActiveStorms()));
         const storms: StormSummary[] = [];

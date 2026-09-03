@@ -11,6 +11,7 @@ import GetActiveStormsUseCase from "../src/application/use-cases/storm/GetActive
 import GetDemoStormsUseCase from "../src/application/use-cases/storm/GetDemoStormsUseCase.js";
 import GetStormConeUseCase from "../src/application/use-cases/storm/GetStormConeUseCase.js";
 import GetStormTrackUseCase from "../src/application/use-cases/storm/GetStormTrackUseCase.js";
+import GetTrackedStormsUseCase from "../src/application/use-cases/storm/GetTrackedStormsUseCase.js";
 
 test("Storms use case returns active storm summaries from the repository", async () => {
     const summary: StormSummary = {
@@ -79,13 +80,29 @@ test("Storms use case returns the requested cone from the repository", async () 
     assert.deepEqual(repository.coneIds, ["nhc:EP072026"]);
 });
 
+test("Tracked storms limits concurrent historical lookups and preserves input ordering", async () => {
+    const activeStorms = new MemoryStormRepository([]);
+    const historicalStorms = new ConcurrencyTrackingHistoricalStormRepository();
+    const useCase = new GetTrackedStormsUseCase(activeStorms, historicalStorms);
+    const stormIds = Array.from({ length: 12 }, (_value, index) => "nhc:EP" + String(index + 1).padStart(2, "0") + "2026");
+
+    const result = await useCase.execute({ stormIds });
+
+    assert.equal(activeStorms.listCalls, 1);
+    assert.equal(historicalStorms.calls, stormIds.length);
+    assert.equal(historicalStorms.maxConcurrentCalls <= 5, true);
+    assert.deepEqual(result.map((storm) => storm.requestedStormId), stormIds);
+});
+
 class MemoryStormRepository implements StormRepository {
+    public listCalls = 0;
     public readonly trackIds: string[] = [];
     public readonly coneIds: string[] = [];
 
     public constructor (private readonly _summaries: StormSummary[]) {}
 
     public async getActiveStorms (): Promise<StormSummary[]> {
+        this.listCalls += 1;
         return this._summaries;
     }
 
@@ -146,6 +163,37 @@ class DemoHistoricalStormTrackRepository implements HistoricalStormTrackReposito
                     category: "category_1",
                 },
             ],
+        };
+    }
+}
+
+class ConcurrencyTrackingHistoricalStormRepository implements HistoricalStormTrackRepository {
+    public calls = 0;
+    public maxConcurrentCalls = 0;
+    private _concurrentCalls = 0;
+
+    public async getHistoricalStormTrack (stormId: string): Promise<HistoricalStormTrack> {
+        this.calls += 1;
+        this._concurrentCalls += 1;
+        this.maxConcurrentCalls = Math.max(this.maxConcurrentCalls, this._concurrentCalls);
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 5));
+        this._concurrentCalls -= 1;
+
+        return {
+            stormId,
+            name: stormId,
+            source: "nhc",
+            trackKind: "best_track",
+            cachedUntil: null,
+            availability: "available",
+            history: [{
+                lat: 22.3,
+                lon: -130.2,
+                datetime: "2026-07-31T21:00:00.000Z",
+                windSpeed: 50,
+                category: null,
+            }],
         };
     }
 }

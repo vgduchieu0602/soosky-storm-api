@@ -1,15 +1,19 @@
 import { CATEGORY_SAFETY_MESSAGES } from "../domain/services/alertMessages.js";
-import TrackedStorm from "../domain/entities/storm/TrackedStorm.js";
+import TrackedStorm, { TrackedStormResult } from "../domain/entities/storm/TrackedStorm.js";
 import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatTrackedStormResponse as default };
 
-interface TrackedStormResponse extends TrackedStorm {
+interface ResolvedTrackedStormResponse extends TrackedStorm {
     area: StormArea;
     message: string | null;
 }
 
-function formatTrackedStormResponse (storm: TrackedStorm): TrackedStormResponse {
+function formatTrackedStormResponse (storm: TrackedStormResult): TrackedStormResult | ResolvedTrackedStormResponse {
+    if (storm.status === "not_found" || storm.status === "unavailable") {
+        return storm;
+    }
+
     return {
         ...storm,
         area: getStormArea(storm),

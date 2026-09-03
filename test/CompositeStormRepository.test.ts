@@ -52,6 +52,39 @@ test("Composite storm repository merges NHC and GDACS active storms", async () =
     assert.equal(gdacsStorms.listCalls, 1);
 });
 
+test("Composite storm repository returns the requested NHC provider result, including an empty result", async () => {
+    const nhc = new CountingNhcStormRepository([nhcSummary()]);
+    const gdacsStorms = new CountingGdacsStormRepository([gdacsSummary()]);
+    const repository = new CompositeStormRepository(nhc, new CountingGdacsStormConeRepository(), gdacsStorms);
+
+    assert.deepEqual(await repository.getActiveStorms("nhc"), [nhcSummary()]);
+
+    const emptyNhc = new CountingNhcStormRepository([]);
+    const emptyRepository = new CompositeStormRepository(
+        emptyNhc,
+        new CountingGdacsStormConeRepository(),
+        gdacsStorms,
+    );
+
+    assert.deepEqual(await emptyRepository.getActiveStorms("nhc"), []);
+    assert.equal(gdacsStorms.listCalls, 0);
+});
+
+test("Composite storm repository fails a requested provider even when the other provider succeeds", async () => {
+    const nhc = new CountingNhcStormRepository([nhcSummary()]);
+    const gdacsStorms = new CountingGdacsStormRepository([gdacsSummary()]);
+    const repository = new CompositeStormRepository(nhc, new CountingGdacsStormConeRepository(), gdacsStorms);
+
+    nhc.listError = new StormProviderError("NHC list failed.");
+    await assert.rejects(repository.getActiveStorms("nhc"), StormProviderError);
+    assert.equal(gdacsStorms.listCalls, 0);
+
+    nhc.listError = null;
+    gdacsStorms.listError = new StormProviderError("GDACS list failed.");
+    await assert.rejects(repository.getActiveStorms("gdacs"), StormProviderError);
+    assert.equal(nhc.listCalls, 1);
+});
+
 test("Composite storm repository still returns one provider's storms when the other fails", async () => {
     const nhc = new CountingNhcStormRepository([nhcSummary()]);
     const gdacsStorms = new CountingGdacsStormRepository([gdacsSummary()]);
@@ -72,6 +105,21 @@ test("Composite storm repository still returns one provider's storms when the ot
     );
     assert.equal(loggedErrors.length, 1);
     assert.match(loggedErrors[0] ?? "", /GDACS event list failed/);
+});
+
+test("Composite storm repository returns GDACS storms for all when NHC fails", async () => {
+    const nhc = new CountingNhcStormRepository([nhcSummary()]);
+    const gdacsStorms = new CountingGdacsStormRepository([gdacsSummary()]);
+    nhc.listError = new StormProviderError("NHC list failed.");
+
+    const repository = new CompositeStormRepository(
+        nhc,
+        new CountingGdacsStormConeRepository(),
+        gdacsStorms,
+        () => undefined,
+    );
+
+    assert.deepEqual(await repository.getActiveStorms(), [gdacsSummary()]);
 });
 
 test("Composite storm repository fails the active storm list only when every provider fails", async () => {

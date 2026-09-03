@@ -88,6 +88,8 @@ const STORED_ALERT: StormAlert = {
 class TestStormRepository implements StormRepository {
     public trackError: Error | null = null;
     public coneError: Error | null = null;
+    public activeStormError: Error | null = null;
+    public activeStormErrors: Partial<Record<StormSummary["source"], Error>> = {};
     public gdacsUnavailable = false;
 
     public readonly summary: StormSummary = {
@@ -199,7 +201,23 @@ class TestStormRepository implements StormRepository {
         }],
     };
 
-    public async getActiveStorms (): Promise<StormSummary[]> {
+    public async getActiveStorms (source?: StormSummary["source"]): Promise<StormSummary[]> {
+        if (this.activeStormError) {
+            throw this.activeStormError;
+        }
+
+        if (source && this.activeStormErrors[source]) {
+            throw this.activeStormErrors[source];
+        }
+
+        if (source === "nhc") {
+            return [this.summary];
+        }
+
+        if (source === "gdacs") {
+            return [this.gdacsSummary];
+        }
+
         return [this.summary, this.gdacsSummary];
     }
 
@@ -524,6 +542,8 @@ class TestRadarRepository implements RadarRepository {
 
 class TestHistoricalStormTrackRepository implements HistoricalStormTrackRepository {
     public error: Error | null = null;
+    public readonly errors = new Map<string, Error>();
+    public readonly unavailableStormIds = new Set<string>();
 
     public readonly historyTrack: HistoricalStormTrack = {
         stormId: "nhc:EP072025",
@@ -542,8 +562,23 @@ class TestHistoricalStormTrackRepository implements HistoricalStormTrackReposito
     };
 
     public async getHistoricalStormTrack (stormId: string): Promise<HistoricalStormTrack> {
+        const error = this.errors.get(stormId);
+
+        if (error) {
+            throw error;
+        }
+
         if (this.error) {
             throw this.error;
+        }
+
+        if (this.unavailableStormIds.has(stormId)) {
+            return {
+                ...this.historyTrack,
+                stormId,
+                availability: "not_available",
+                history: [],
+            };
         }
 
         return { ...this.historyTrack, stormId };
@@ -660,6 +695,24 @@ test("GET /v1/storms returns active NHC storms", async () => {
     });
 });
 
+test("GET /v1/storms?region=us-nhc returns 502 when NHC is unavailable", async () => {
+    stormRepository.activeStormErrors.nhc = new StormProviderError("NHC list failed.");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms?region=us-nhc");
+
+        assert.equal(response.status, 502);
+        assert.deepEqual(await response.json(), {
+            ok: false,
+            code: "UPSTREAM_UNAVAILABLE",
+            reason: "Storm data is temporarily unavailable",
+            cacheStatus: "upstream",
+        });
+    } finally {
+        delete stormRepository.activeStormErrors.nhc;
+    }
+});
+
 test("GET /v1/storms/demo returns one to five random demo storms", async () => {
     const response = await fetch(baseUrl + "/v1/storms/demo");
 
@@ -758,6 +811,122 @@ test("POST /v1/storms/tracking resolves active and dissipated storm cards in one
     });
 });
 
+test("POST /v1/storms/tracking resolves every valid item in a batch", async () => {
+    const stormIds = ["nhc:EP072026", "nhc:EP072025", "nhc:AL012025"];
+    const response = await fetch(baseUrl + "/v1/storms/tracking", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ stormIds }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).data.map((storm: { requestedStormId: string; status: string }) => ({
+        requestedStormId: storm.requestedStormId,
+        status: storm.status,
+    })), [
+        { requestedStormId: "nhc:EP072026", status: "active" },
+        { requestedStormId: "nhc:EP072025", status: "dissipated" },
+        { requestedStormId: "nhc:AL012025", status: "dissipated" },
+    ]);
+});
+
+test("POST /v1/storms/tracking keeps active results when another storm is not found", async () => {
+    const missingStormId = "nhc:AL012025";
+    historicalStormTrackRepository.unavailableStormIds.add(missingStormId);
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms/tracking", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stormIds: ["nhc:EP072026", missingStormId] }),
+        });
+
+        assert.equal(response.status, 200);
+        assert.deepEqual((await response.json()).data.map((storm: { requestedStormId: string; status: string }) => ({
+            requestedStormId: storm.requestedStormId,
+            status: storm.status,
+        })), [
+            { requestedStormId: "nhc:EP072026", status: "active" },
+            { requestedStormId: missingStormId, status: "not_found" },
+        ]);
+    } finally {
+        historicalStormTrackRepository.unavailableStormIds.delete(missingStormId);
+    }
+});
+
+test("POST /v1/storms/tracking keeps active results when another storm provider is unavailable", async () => {
+    const unavailableStormId = "nhc:AL022025";
+    historicalStormTrackRepository.errors.set(unavailableStormId, new StormProviderError("NHC historical data is unavailable."));
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms/tracking", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stormIds: ["nhc:EP072026", unavailableStormId] }),
+        });
+
+        assert.equal(response.status, 200);
+        assert.deepEqual((await response.json()).data.map((storm: { requestedStormId: string; status: string }) => ({
+            requestedStormId: storm.requestedStormId,
+            status: storm.status,
+        })), [
+            { requestedStormId: "nhc:EP072026", status: "active" },
+            { requestedStormId: unavailableStormId, status: "unavailable" },
+        ]);
+    } finally {
+        historicalStormTrackRepository.errors.delete(unavailableStormId);
+    }
+});
+
+test("POST /v1/storms/tracking preserves input ordering for multiple failed items", async () => {
+    const unavailableStormId = "nhc:AL022025";
+    const missingStormId = "nhc:AL032025";
+    const resolvedHistoricalStormId = "nhc:AL042025";
+    historicalStormTrackRepository.errors.set(unavailableStormId, new StormProviderError("NHC historical data is unavailable."));
+    historicalStormTrackRepository.unavailableStormIds.add(missingStormId);
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms/tracking", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                stormIds: [unavailableStormId, "nhc:EP072026", missingStormId, resolvedHistoricalStormId],
+            }),
+        });
+
+        assert.equal(response.status, 200);
+        assert.deepEqual((await response.json()).data.map((storm: { requestedStormId: string; status: string }) => ({
+            requestedStormId: storm.requestedStormId,
+            status: storm.status,
+        })), [
+            { requestedStormId: unavailableStormId, status: "unavailable" },
+            { requestedStormId: "nhc:EP072026", status: "active" },
+            { requestedStormId: missingStormId, status: "not_found" },
+            { requestedStormId: resolvedHistoricalStormId, status: "dissipated" },
+        ]);
+    } finally {
+        historicalStormTrackRepository.errors.delete(unavailableStormId);
+        historicalStormTrackRepository.unavailableStormIds.delete(missingStormId);
+    }
+});
+
+test("POST /v1/storms/tracking returns 502 when the active-storm dependency is unavailable", async () => {
+    stormRepository.activeStormError = new StormProviderError("Active storm providers are unavailable.");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms/tracking", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ stormIds: ["nhc:EP072026"] }),
+        });
+
+        assert.equal(response.status, 502);
+        assert.equal((await response.json()).code, "UPSTREAM_UNAVAILABLE");
+    } finally {
+        stormRepository.activeStormError = null;
+    }
+});
+
 test("POST /v1/storms/tracking rejects an empty or malformed storm ID list", async () => {
     for (const stormIds of [[], ["not-a-storm"]]) {
         const response = await fetch(baseUrl + "/v1/storms/tracking", {
@@ -788,6 +957,24 @@ test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
         }],
         cacheStatus: "bypass",
     });
+});
+
+test("GET /v1/storms?region=gdacs returns 502 when GDACS is unavailable", async () => {
+    stormRepository.activeStormErrors.gdacs = new StormProviderError("GDACS list failed.");
+
+    try {
+        const response = await fetch(baseUrl + "/v1/storms?region=gdacs");
+
+        assert.equal(response.status, 502);
+        assert.deepEqual(await response.json(), {
+            ok: false,
+            code: "UPSTREAM_UNAVAILABLE",
+            reason: "Storm data is temporarily unavailable",
+            cacheStatus: "upstream",
+        });
+    } finally {
+        delete stormRepository.activeStormErrors.gdacs;
+    }
 });
 
 test("GET /v1/storms accepts region=all", async () => {

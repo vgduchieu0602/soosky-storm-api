@@ -1,7 +1,8 @@
-import StormSummary from "../../domain/entities/storm/StormSummary.js";
+import StormSummary, { StormSource } from "../../domain/entities/storm/StormSummary.js";
 import { cloneWithCacheStatus, markCacheStatus } from "../../domain/services/cacheStatus.js";
 import StormCone from "../../domain/entities/storm/StormCone.js";
 import StormTrack from "../../domain/entities/storm/StormTrack.js";
+import StormProviderError from "../../domain/errors/StormProviderError.js";
 import StormRepository from "../../domain/repositories/storm/IStormRepository.js";
 import BoundedTtlLruCache from "./BoundedTtlLruCache.js";
 
@@ -30,7 +31,7 @@ const DEFAULT_CACHE_LIMITS: StormCacheLimits = {
 class CachedStormRepository implements StormRepository {
     private readonly _tracks: BoundedTtlLruCache<StormTrack>;
     private readonly _cones: BoundedTtlLruCache<StormCone>;
-    private _activeStorms: CachedActiveStorms | null = null;
+    private readonly _activeStorms = new Map<StormSource | "all", CachedActiveStorms>();
 
     public constructor (
         private readonly _source: StormRepository,
@@ -51,19 +52,31 @@ class CachedStormRepository implements StormRepository {
         });
     }
 
-    public async getActiveStorms (): Promise<StormSummary[]> {
+    public async getActiveStorms (source?: StormSource): Promise<StormSummary[]> {
         const now = this._now();
+        const key = source ?? "all";
+        const cached = this._activeStorms.get(key);
 
-        if (this._activeStorms && now < this._activeStorms.expiresAt) {
-            return cloneWithCacheStatus(this._activeStorms.value, "cached");
+        if (cached && now < cached.expiresAt) {
+            return cloneWithCacheStatus(cached.value, "cached");
         }
 
-        const value = markCacheStatus(await this._source.getActiveStorms(), "upstream");
+        let value: StormSummary[];
 
-        this._activeStorms = {
+        try {
+            value = markCacheStatus(await this._source.getActiveStorms(source), "upstream");
+        } catch (error) {
+            if (cached && error instanceof StormProviderError) {
+                return cloneWithCacheStatus(cached.value, "stale");
+            }
+
+            throw error;
+        }
+
+        this._activeStorms.set(key, {
             expiresAt: now + this._activeStormsTtlMs,
             value,
-        };
+        });
 
         return value;
     }

@@ -1,7 +1,7 @@
 export { cloneWithCacheStatus, getCacheStatus, markCacheStatus };
 export type { CacheStatus };
 
-type CacheStatus = "upstream" | "cached";
+type CacheStatus = "upstream" | "cached" | "stale";
 
 const STATUSES = new WeakMap<object, CacheStatus>();
 
