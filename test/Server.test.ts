@@ -689,7 +689,6 @@ test("GET /v1/storms returns active NHC storms", async () => {
         data: [{
             ...stormRepository.summary,
             area: "PO",
-            message: null,
         }],
         cacheStatus: "bypass",
     });
@@ -733,37 +732,33 @@ test("GET /v1/storms returns every provider's storms when no region is given", a
         data: [{
             ...stormRepository.summary,
             area: "PO",
-            message: null,
         }, {
             ...stormRepository.gdacsSummary,
             area: "PO",
-            message: "Extreme danger. Leave immediately if ordered.",
         }],
         cacheStatus: "bypass",
     });
 });
 
-test("GET /v1/storms includes each active storm's area and safety message", async () => {
+test("GET /v1/storms includes only the three supported areas and omits safety messages", async () => {
     const response = await fetch(baseUrl + "/v1/storms");
     const payload = await response.json();
 
     assert.equal(response.status, 200);
-    assert.deepEqual(payload.data.map((storm: { stormId: string; area: string | null; message: string | null }) => ({
+    assert.deepEqual(payload.data.map((storm: { stormId: string; area: string | null }) => ({
         stormId: storm.stormId,
         area: storm.area,
-        message: storm.message,
     })), [
         {
             stormId: "nhc:EP072026",
             area: "PO",
-            message: null,
         },
         {
             stormId: "gdacs:TC:1001297:51",
             area: "PO",
-            message: "Extreme danger. Leave immediately if ordered.",
         },
     ]);
+    assert.equal(payload.data.every((storm: Record<string, unknown>) => !("message" in storm)), true);
 });
 
 test("POST /v1/storms/tracking resolves active and dissipated storm cards in one request", async () => {
@@ -787,7 +782,6 @@ test("POST /v1/storms/tracking resolves active and dissipated storm cards in one
             area: "PO",
             status: "active",
             category: "category_5",
-            message: "Extreme danger. Leave immediately if ordered.",
             lat: 27,
             lon: 124.8,
             updatedAt: "2026-08-08T12:00:00.000Z",
@@ -801,7 +795,6 @@ test("POST /v1/storms/tracking resolves active and dissipated storm cards in one
             area: "PO",
             status: "dissipated",
             category: "category_1",
-            message: "Secure loose items, check emergency supplies now",
             lat: 15,
             lon: -120,
             updatedAt: "2025-08-03T00:00:00.000Z",
@@ -953,7 +946,6 @@ test("GET /v1/storms returns only GDACS storms for region=gdacs", async () => {
         data: [{
             ...stormRepository.gdacsSummary,
             area: "PO",
-            message: "Extreme danger. Leave immediately if ordered.",
         }],
         cacheStatus: "bypass",
     });
@@ -1128,14 +1120,12 @@ test("GET /v1/storms/:stormId/track returns the normalized track", async () => {
             issuedAt: "2026-07-31T21:00:00.000Z",
             cachedUntil: "2026-07-31T23:00:00.000Z",
             category: "category_2",
-            message: "Review evacuation route. Power outages likely",
             observed: [{
                 lat: 22.3,
                 lon: -130.2,
                 datetime: "2026-07-31T21:00:00.000Z",
                 windSpeed: 90,
                 category: "category_2",
-                message: "Review evacuation route. Power outages likely",
             }],
             forecast: [],
         },
@@ -1171,14 +1161,12 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
             issuedAt: "2026-08-08T16:50:16.000Z",
             cachedUntil: null,
             category: null,
-            message: null,
             observed: [{
                 lat: 27,
                 lon: 124.8,
                 datetime: "2026-08-08T12:00:00.000Z",
                 windSpeed: null,
                 category: null,
-                message: null,
             }],
             forecast: [{
                 lat: 27.3,
@@ -1186,7 +1174,6 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
                 datetime: "2026-08-09T00:00:00.000Z",
                 windSpeed: null,
                 category: null,
-                message: null,
                 forecastHour: 12,
             }],
         },
@@ -1194,29 +1181,12 @@ test("GET /v1/storms/:stormId/track accepts a GDACS storm ID", async () => {
     });
 });
 
-test("GET /v1/storms/:stormId/track maps every hurricane category to its safety message", async () => {
-    const original = stormRepository.track.observed[0]!;
-    const examples = [
-        ["category_1", "category_1", "Secure loose items, check emergency supplies now"],
-        ["category_2", "category_2", "Review evacuation route. Power outages likely"],
-        ["category_3", "category_3", "Major hurricane. Follow evacuation orders if issued"],
-        ["category_4", "category_4", "Catastrophic winds. Evacuate now if advised."],
-        ["category_5", "category_5", "Extreme danger. Leave immediately if ordered."],
-    ] as const;
+test("GET /v1/storms/:stormId/track omits safety messages", async () => {
+    const response = await fetch(baseUrl + "/v1/storms/nhc:EP072026/track");
+    const payload = await response.json();
 
-    try {
-        for (const [category, expectedCategory, expectedMessage] of examples) {
-            stormRepository.track.observed[0] = { ...original, category };
-
-            const response = await fetch(baseUrl + "/v1/storms/nhc:EP072026/track");
-            const payload = await response.json();
-
-            assert.equal(payload.data.category, expectedCategory);
-            assert.equal(payload.data.message, expectedMessage);
-        }
-    } finally {
-        stormRepository.track.observed[0] = original;
-    }
+    assert.equal("message" in payload.data, false);
+    assert.equal("message" in payload.data.observed[0], false);
 });
 
 test("GET /v1/storms/:stormId/track rejects a malformed GDACS storm ID", async () => {

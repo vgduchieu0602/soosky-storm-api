@@ -1,7 +1,7 @@
 export { getStormArea as default };
 export type { StormArea };
 
-type StormArea = "PO" | "AO" | "IO" | "SO" | "AR";
+type StormArea = "PO" | "AO" | "IO";
 
 interface StormAreaInput {
     stormId: string;
@@ -9,24 +9,16 @@ interface StormAreaInput {
     lon: number;
 }
 
-function getStormArea ({ stormId, lat, lon }: StormAreaInput): StormArea {
+function getStormArea ({ stormId, lon }: StormAreaInput): StormArea {
     switch (stormId.slice(4, 6)) {
         case "AL": return "AO";
         case "EP":
         case "CP": return "PO";
-        default: return getAreaFromPosition(lat, lon);
+        default: return getAreaFromPosition(lon);
     }
 }
 
-function getAreaFromPosition (lat: number, lon: number): StormArea {
-    if (lat >= 66) {
-        return "AR";
-    }
-
-    if (lat <= -60) {
-        return "SO";
-    }
-
+function getAreaFromPosition (lon: number): StormArea {
     if (lon >= 20 && lon < 100) {
         return "IO";
     }

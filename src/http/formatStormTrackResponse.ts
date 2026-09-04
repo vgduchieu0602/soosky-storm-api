@@ -1,25 +1,15 @@
 import StormTrack, { StormTrackPoint } from "../domain/entities/storm/StormTrack.js";
-import { CATEGORY_SAFETY_MESSAGES } from "../domain/services/alertMessages.js";
 import getStormArea, { StormArea } from "./getStormArea.js";
 
 export { formatStormTrackResponse as default };
 
-interface StormTrackResponse extends Omit<StormTrack, "area" | "observed" | "forecast"> {
+interface StormTrackResponse extends Omit<StormTrack, "area"> {
     area: StormArea;
     category: StormTrackPoint["category"];
-    message: string | null;
-    observed: StormTrackPointResponse[];
-    forecast: StormTrackPointResponse[];
-}
-
-interface StormTrackPointResponse extends Omit<StormTrackPoint, "category"> {
-    category: StormTrackPoint["category"];
-    message: string | null;
 }
 
 function formatStormTrackResponse (track: StormTrack): StormTrackResponse {
-    const observed = track.observed.map(formatPoint);
-    const forecast = track.forecast.map(formatPoint);
+    const { observed, forecast } = track;
     const current = observed.at(-1) ?? forecast[0] ?? null;
 
     return {
@@ -30,15 +20,7 @@ function formatStormTrackResponse (track: StormTrack): StormTrackResponse {
             lon: current?.lon ?? 0,
         }),
         category: current?.category ?? null,
-        message: current?.message ?? null,
         observed,
         forecast,
-    };
-}
-
-function formatPoint (point: StormTrackPoint): StormTrackPointResponse {
-    return {
-        ...point,
-        message: point.category === null ? null : CATEGORY_SAFETY_MESSAGES[point.category] ?? null,
     };
 }
